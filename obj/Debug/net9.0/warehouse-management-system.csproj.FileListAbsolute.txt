@@ -1,0 +1,15 @@
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.GeneratedMSBuildEditorConfig.editorconfig
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.AssemblyInfoInputs.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.AssemblyInfo.cs
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.csproj.CoreCompileInputs.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.sourcelink.json
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\bin\Debug\net9.0\warehouse-management-system.exe
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\bin\Debug\net9.0\warehouse-management-system.deps.json
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\bin\Debug\net9.0\warehouse-management-system.runtimeconfig.json
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\bin\Debug\net9.0\warehouse-management-system.dll
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\bin\Debug\net9.0\warehouse-management-system.pdb
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.dll
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\refint\warehouse-management-system.dll
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.pdb
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\warehouse-management-system.genruntimeconfig.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\obj\Debug\net9.0\ref\warehouse-management-system.dll

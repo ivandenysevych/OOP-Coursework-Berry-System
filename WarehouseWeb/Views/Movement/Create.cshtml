@@ -1,0 +1,255 @@
+﻿@{
+    ViewData["Title"] = "Створити рух";
+    var products = ViewBag.Products as List<WarehouseWeb.Models.Product> ?? new List<WarehouseWeb.Models.Product>();
+    var zones = ViewBag.Zones as List<WarehouseWeb.Models.StorageZone> ?? new List<WarehouseWeb.Models.StorageZone>();
+    var companies = ViewBag.Companies as List<WarehouseWeb.Models.Company> ?? new List<WarehouseWeb.Models.Company>();
+    var hasProducts = products.Count > 0;
+
+    var form = Context?.Request?.HasFormContentType == true ? Context.Request.Form : null;
+    var selectedMovementType = form?["movementType"].ToString();
+    if (string.IsNullOrWhiteSpace(selectedMovementType))
+    {
+        selectedMovementType = "Add";
+    }
+
+    var createNewProductChecked = string.Equals(form?["createNewProduct"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+    if (!hasProducts)
+    {
+        createNewProductChecked = true;
+    }
+
+    if (createNewProductChecked)
+    {
+        selectedMovementType = "Add";
+    }
+
+    var selectedProductId = form?["productId"].ToString() ?? string.Empty;
+    var selectedFromZoneId = form?["fromZoneId"].ToString() ?? string.Empty;
+    var selectedToZoneId = form?["toZoneId"].ToString() ?? string.Empty;
+    var selectedDestinationCompanyId = form?["destinationCompanyId"].ToString() ?? string.Empty;
+
+    var newProductNameValue = form?["newProductName"].ToString() ?? string.Empty;
+    var newProductCategoryValue = form?["newProductCategory"].ToString() ?? string.Empty;
+    var newProductPriceValue = form?["newProductPrice"].ToString() ?? string.Empty;
+    var newProductUnitValue = form?["newProductUnit"].ToString() ?? string.Empty;
+
+    string ZoneLabel(WarehouseWeb.Models.StorageZone zone)
+    {
+        var warehouseName = zone.Warehouse?.Name ?? "Склад";
+        var companyName = zone.Warehouse?.Company?.Name ?? "Без компанії";
+        return $"{zone.Name} ({warehouseName} / {companyName})";
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Створення руху товару</h1>
+    <p class="page-subtitle">Оберіть тип операції, товар або створіть новий, вкажіть кількість та зони переміщення.</p>
+</section>
+
+<div class="panel" style="max-width: 920px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    <form method="post" class="form-grid">
+        <div>
+            <label class="form-label" for="movementType">Тип руху</label>
+            <select id="movementType" name="movementType">
+                <option value="Add" selected="@(selectedMovementType == "Add" ? "selected" : null)">Надходження</option>
+                <option id="movementRemoveOption" value="Remove" selected="@(selectedMovementType == "Remove" ? "selected" : null)">Списання</option>
+                <option id="movementMoveOption" value="Move" selected="@(selectedMovementType == "Move" ? "selected" : null)">Переміщення</option>
+            </select>
+        </div>
+
+        <div class="full subcard" style="padding: 0.85rem;">
+            <label class="form-label" style="margin-bottom: 0;">
+                <input
+                    id="createNewProduct"
+                    name="createNewProduct"
+                    type="checkbox"
+                    value="true"
+                    @(createNewProductChecked ? "checked" : string.Empty)
+                    style="width: auto; margin-right: 0.45rem;" />
+                Створити новий товар у цьому русі
+            </label>
+            <p class="form-note mt-2 mb-0">Режим доступний лише для типу руху "Надходження".</p>
+        </div>
+
+        <div id="existingProductBlock">
+            <label class="form-label" for="productId">Товар</label>
+            <select id="productId" name="productId">
+                <option value="">Оберіть товар</option>
+                @foreach (var product in products)
+                {
+                    <option
+                        value="@product.Id"
+                        selected="@(selectedProductId == product.Id.ToString() ? "selected" : null)">
+                        @product.Name (@product.Quantity @product.Unit)
+                    </option>
+                }
+            </select>
+            @if (!hasProducts)
+            {
+                <p class="form-note mt-2 mb-0">У системі ще немає товарів. Увімкніть "Створити новий товар".</p>
+            }
+        </div>
+
+        <div id="newProductBlock" class="full" style="display: none;">
+            <div class="subcard">
+                <h3 class="section-title">Новий товар</h3>
+                <div class="form-grid">
+                    <div>
+                        <label class="form-label" for="newProductName">Назва</label>
+                        <input id="newProductName" name="newProductName" type="text" maxlength="180" value="@newProductNameValue" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="newProductCategory">Категорія</label>
+                        <input id="newProductCategory" name="newProductCategory" type="text" maxlength="120" value="@newProductCategoryValue" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="newProductPrice">Ціна за одиницю</label>
+                        <input id="newProductPrice" name="newProductPrice" type="number" step="0.01" min="0" value="@newProductPriceValue" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="newProductUnit">Одиниця виміру</label>
+                        <select id="newProductUnit" name="newProductUnit">
+                            <option value="" selected="@(string.IsNullOrWhiteSpace(newProductUnitValue) ? "selected" : null)">Оберіть одиницю</option>
+                            <option value="kg" selected="@(newProductUnitValue == "kg" ? "selected" : null)">kg</option>
+                            <option value="g" selected="@(newProductUnitValue == "g" ? "selected" : null)">g</option>
+                            <option value="pcs" selected="@(newProductUnitValue == "pcs" ? "selected" : null)">pcs</option>
+                            <option value="box" selected="@(newProductUnitValue == "box" ? "selected" : null)">box</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="form-label" for="quantity">Кількість</label>
+            <input id="quantity" name="quantity" type="number" step="0.001" min="0.001" required value="@(form?["quantity"].ToString() ?? string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="fromZoneId">Звідки (опційно)</label>
+            <select id="fromZoneId" name="fromZoneId">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(selectedFromZoneId) ? "selected" : null)">Автовизначення (поточна зона товару)</option>
+                @foreach (var zone in zones)
+                {
+                    <option value="@zone.Id" selected="@(selectedFromZoneId == zone.Id.ToString() ? "selected" : null)">@ZoneLabel(zone)</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="destinationCompanyId">Компанія призначення (для міжкомпанійного руху)</label>
+            <select id="destinationCompanyId" name="destinationCompanyId">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(selectedDestinationCompanyId) ? "selected" : null)">Усі компанії</option>
+                @foreach (var company in companies)
+                {
+                    <option value="@company.Id" selected="@(selectedDestinationCompanyId == company.Id.ToString() ? "selected" : null)">@company.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="toZoneId">Куди (для переміщення)</label>
+            <select id="toZoneId" name="toZoneId">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(selectedToZoneId) ? "selected" : null)">Не обрано</option>
+                @foreach (var zone in zones)
+                {
+                    <option
+                        value="@zone.Id"
+                        data-company-id="@zone.Warehouse?.CompanyId"
+                        selected="@(selectedToZoneId == zone.Id.ToString() ? "selected" : null)">
+                        @ZoneLabel(zone)
+                    </option>
+                }
+            </select>
+            <p class="form-note">Для переміщення між компаніями можна лишити зону порожньою: система автоматично покладе товар у нейтральну зону "Транзит" компанії призначення.</p>
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Виконати рух</button>
+            <a href="/Movement" class="btn-muted">Скасувати</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var hasProducts = @hasProducts.ToString().ToLowerInvariant();
+        var movementType = document.getElementById("movementType");
+        var movementRemoveOption = document.getElementById("movementRemoveOption");
+        var movementMoveOption = document.getElementById("movementMoveOption");
+        var createNewProduct = document.getElementById("createNewProduct");
+        var productId = document.getElementById("productId");
+        var destinationCompany = document.getElementById("destinationCompanyId");
+        var toZone = document.getElementById("toZoneId");
+        var existingProductBlock = document.getElementById("existingProductBlock");
+        var newProductBlock = document.getElementById("newProductBlock");
+        var newProductName = document.getElementById("newProductName");
+        var newProductCategory = document.getElementById("newProductCategory");
+        var newProductPrice = document.getElementById("newProductPrice");
+        var newProductUnit = document.getElementById("newProductUnit");
+
+        function syncDestinationZones() {
+            var selectedCompanyId = destinationCompany.value;
+            var selectedZoneId = toZone.value;
+            var zoneOptions = toZone.querySelectorAll("option[data-company-id]");
+
+            for (var i = 0; i < zoneOptions.length; i++) {
+                var option = zoneOptions[i];
+                var companyId = option.getAttribute("data-company-id") || "";
+                var shouldShow = !selectedCompanyId || companyId === selectedCompanyId;
+                option.hidden = !shouldShow;
+                option.disabled = !shouldShow;
+            }
+
+            if (selectedZoneId) {
+                var selectedOption = toZone.querySelector("option[value='" + selectedZoneId + "']");
+                if (selectedOption && selectedOption.disabled) {
+                    toZone.value = "";
+                }
+            }
+        }
+
+        function syncMode() {
+            var isCreateNew = createNewProduct.checked;
+
+            existingProductBlock.style.display = isCreateNew ? "none" : "";
+            newProductBlock.style.display = isCreateNew ? "" : "none";
+
+            productId.disabled = isCreateNew;
+            productId.required = !isCreateNew;
+
+            newProductName.required = isCreateNew;
+            newProductCategory.required = isCreateNew;
+            newProductPrice.required = isCreateNew;
+            newProductUnit.required = isCreateNew;
+
+            movementRemoveOption.disabled = isCreateNew;
+            movementMoveOption.disabled = isCreateNew;
+
+            if (isCreateNew && movementType.value !== "Add") {
+                movementType.value = "Add";
+            }
+
+            if (!hasProducts && !isCreateNew) {
+                createNewProduct.checked = true;
+                syncMode();
+            }
+        }
+
+        createNewProduct.addEventListener("change", syncMode);
+        destinationCompany.addEventListener("change", syncDestinationZones);
+        movementType.addEventListener("change", function () {
+            if (createNewProduct.checked && movementType.value !== "Add") {
+                movementType.value = "Add";
+            }
+        });
+
+        syncMode();
+        syncDestinationZones();
+    })();
+</script>

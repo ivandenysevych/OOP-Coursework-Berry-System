@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Меню заготівельника";
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Меню заготівельника</h1>
+    <p class="page-subtitle">
+        Тут ви фіксуєте приймання товару від людей, ведете власний журнал і передаєте дані менеджеру для подальшого руху по складу.
+    </p>
+</section>
+
+<div class="kpi-grid mb-3">
+    <article class="kpi-card">
+        <p class="kpi-label">Нова заготівля</p>
+        <p class="kpi-value">Приймання від людей</p>
+        <a class="action-link" href="/Procurement/Create">Додати запис</a>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Мій журнал</p>
+        <p class="kpi-value">Історія операцій</p>
+        <a class="action-link" href="/Procurement">Переглянути журнал</a>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Каталог товарів</p>
+        <p class="kpi-value">Перелік позицій</p>
+        <a class="action-link" href="/Product">Відкрити каталог</a>
+    </article>
+</div>
+
+<div class="panel">
+    <h2 class="section-title">Робочий порядок</h2>
+    <ol class="list-clean">
+        <li>Оберіть товар із каталогу та внесіть дані приймання.</li>
+        <li>Запис потрапить у ваш журнал заготівель з датою, ціною та оплатою.</li>
+        <li>Після фізичної доставки менеджер проводить потрібні складські рухи.</li>
+    </ol>
+</div>

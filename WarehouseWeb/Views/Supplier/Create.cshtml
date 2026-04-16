@@ -1,0 +1,64 @@
+@{
+    ViewData["Title"] = "Новий постачальник";
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Додавання постачальника</h1>
+    <p class="page-subtitle">Заповніть контактні дані та умови співпраці для подальшого обліку закупівель.</p>
+</section>
+
+<div class="panel" style="max-width: 920px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    <form method="post" class="form-grid">
+        <div>
+            <label class="form-label" for="name">Назва постачальника</label>
+            <input id="name" name="name" required maxlength="180" value="@(Context?.Request?.HasFormContentType == true ? Context.Request.Form["name"].ToString() : string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="contactPerson">Контактна особа</label>
+            <input id="contactPerson" name="contactPerson" maxlength="120" value="@(Context?.Request?.HasFormContentType == true ? Context.Request.Form["contactPerson"].ToString() : string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="email">Email</label>
+            <input id="email" name="email" type="email" maxlength="200" value="@(Context?.Request?.HasFormContentType == true ? Context.Request.Form["email"].ToString() : string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="phone">Телефон</label>
+            <input id="phone" name="phone" maxlength="40" value="@(Context?.Request?.HasFormContentType == true ? Context.Request.Form["phone"].ToString() : string.Empty)" />
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="cooperationTerms">Умови співпраці</label>
+            <textarea id="cooperationTerms" name="cooperationTerms" maxlength="700">@(Context?.Request?.HasFormContentType == true ? Context.Request.Form["cooperationTerms"].ToString() : string.Empty)</textarea>
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="pricingNotes">Цінові параметри / примітки</label>
+            <textarea id="pricingNotes" name="pricingNotes" maxlength="500">@(Context?.Request?.HasFormContentType == true ? Context.Request.Form["pricingNotes"].ToString() : string.Empty)</textarea>
+        </div>
+
+        <div class="full subcard" style="padding: 0.85rem;">
+            <label class="form-label" style="margin-bottom: 0;">
+                <input
+                    name="isActive"
+                    type="checkbox"
+                    value="true"
+                    @(Context?.Request?.HasFormContentType != true || Context.Request.Form["isActive"] == "true" ? "checked" : string.Empty)
+                    style="width: auto; margin-right: 0.45rem;" />
+                Активний постачальник
+            </label>
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Зберегти постачальника</button>
+            <a href="/Supplier" class="btn-muted">Скасувати</a>
+        </div>
+    </form>
+</div>

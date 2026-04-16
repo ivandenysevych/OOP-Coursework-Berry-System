@@ -1,0 +1,159 @@
+﻿@model List<WarehouseWeb.Models.Purchase>
+
+@{
+    ViewData["Title"] = "Журнал закупівель";
+    var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+    var canManage = string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Owner, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Manager, StringComparison.OrdinalIgnoreCase);
+
+    string PurchaseStatusLabel(WarehouseWeb.Models.PurchaseStatus status)
+    {
+        return status switch
+        {
+            WarehouseWeb.Models.PurchaseStatus.Draft => "Чернетка",
+            WarehouseWeb.Models.PurchaseStatus.Received => "Прийнято",
+            WarehouseWeb.Models.PurchaseStatus.Rejected => "Відхилено",
+            WarehouseWeb.Models.PurchaseStatus.Cancelled => "Скасовано",
+            _ => status.ToString()
+        };
+    }
+
+    string QualityStatusLabel(WarehouseWeb.Models.PurchaseQualityStatus status)
+    {
+        return status switch
+        {
+            WarehouseWeb.Models.PurchaseQualityStatus.Pending => "Очікує контроль",
+            WarehouseWeb.Models.PurchaseQualityStatus.Accepted => "Прийнято",
+            WarehouseWeb.Models.PurchaseQualityStatus.AcceptedWithRemarks => "Прийнято з зауваженнями",
+            WarehouseWeb.Models.PurchaseQualityStatus.Rejected => "Брак / відхилено",
+            _ => status.ToString()
+        };
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Журнал закупівель</h1>
+    <p class="page-subtitle">Обсяги, дати, вартість, умови оплати, якість приймання та зв'язок із рухами складу.</p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+@if (canManage)
+{
+    <div class="actions-row">
+        <a href="/Purchase/Create" class="btn-brand">Зареєструвати закупівлю</a>
+        <a href="/Supplier" class="btn-muted">До постачальників</a>
+    </div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">Поки що журнал закупівель порожній.</div>
+}
+else
+{
+    <div class="table-wrap panel p-0">
+        <table class="table-modern" style="min-width: 1260px;">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Постачальник</th>
+                    <th>Товар</th>
+                    <th>К-сть</th>
+                    <th>Ціна</th>
+                    <th>Сума</th>
+                    <th>Оплата</th>
+                    <th>Договір</th>
+                    <th>Якість</th>
+                    <th>Документи</th>
+                    <th>Облік складу</th>
+                    @if (canManage)
+                    {
+                        <th>Дії</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var purchase in Model)
+                {
+                    <tr>
+                        <td>@purchase.ArrivalDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @if (purchase.IsDirectReceipt)
+                            {
+                                <strong>Пряме надходження</strong>
+                                <br />
+                                <span class="form-note">Від: @purchase.DirectSourceName</span>
+                            }
+                            else
+                            {
+                                @purchase.Supplier?.Name
+                            }
+                        </td>
+                        <td>@purchase.Product?.Name</td>
+                        <td>@purchase.Quantity</td>
+                        <td>@purchase.UnitPrice.ToString("0.00")</td>
+                        <td>@purchase.TotalCost.ToString("0.00")</td>
+                        <td>
+                            @purchase.PaymentTerms
+                            @if (purchase.PaymentDueDate.HasValue)
+                            {
+                                <br />
+                                <span class="form-note">до @purchase.PaymentDueDate.Value.ToLocalTime().ToString("yyyy-MM-dd")</span>
+                            }
+                            @if (purchase.IsDirectReceipt && purchase.DirectPaymentMethod.HasValue)
+                            {
+                                <br />
+                                <span class="form-note">
+                                    Оплата:
+                                    @(purchase.DirectPaymentMethod == WarehouseWeb.Models.ProcurementPaymentMethod.Cash ? "Готівка" : "Карта")
+                                </span>
+                            }
+                        </td>
+                        <td>@(purchase.IsDirectReceipt ? "Без договору (пряме надходження)" : (purchase.Contract?.ContractNumber ?? "Без договору"))</td>
+                        <td>
+                            <span class="form-note">@PurchaseStatusLabel(purchase.Status)</span><br />
+                            <strong>@QualityStatusLabel(purchase.QualityStatus)</strong>
+                        </td>
+                        <td>
+                            <span class="form-note">Накладна: @purchase.InvoiceNumber</span><br />
+                            <span class="form-note">Акт: @purchase.AcceptanceActNumber</span>
+                        </td>
+                        <td>
+                            @if (purchase.InventoryPosted)
+                            {
+                                <span class="badge-soft badge-ok">Оприбутковано</span>
+                                @if (purchase.StorageZone != null)
+                                {
+                                    <br />
+                                    <span class="form-note">@purchase.StorageZone.Name (@purchase.StorageZone.Warehouse?.Name)</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge-soft badge-muted">Без оприбуткування</span>
+                            }
+                        </td>
+                        @if (canManage)
+                        {
+                            <td>
+                                <form method="post" action="/Purchase/Delete" onsubmit="return confirm('Видалити цю закупівлю?');">
+                                    <input type="hidden" name="id" value="@purchase.Id" />
+                                    <button type="submit" class="action-link danger">Видалити</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

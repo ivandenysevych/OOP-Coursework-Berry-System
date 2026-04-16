@@ -1,0 +1,21 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = "Помилка";
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Сталася помилка</h1>
+    <p class="page-subtitle">Під час обробки запиту виникла неочікувана проблема.</p>
+</section>
+
+<div class="panel">
+    @if (Model.ShowRequestId)
+    {
+        <p><strong>ID запиту:</strong> <code>@Model.RequestId</code></p>
+    }
+
+    <p class="mb-0">
+        Спробуйте оновити сторінку або повернутися на головну. Якщо помилка повторюється,
+        перевірте останні зміни в системі.
+    </p>
+</div>

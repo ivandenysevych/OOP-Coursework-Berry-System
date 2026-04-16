@@ -1,0 +1,32 @@
+﻿@{
+    ViewData["Title"] = "Нова компанія";
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Створення компанії</h1>
+    <p class="page-subtitle">Після створення ви зможете додати склади, зони та працівників.</p>
+</section>
+
+<div class="panel" style="max-width: 760px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    <form method="post" class="form-grid">
+        <div class="full">
+            <label class="form-label" for="name">Назва компанії</label>
+            <input id="name" name="name" placeholder="ТОВ Ягідний Дім" required />
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="description">Опис</label>
+            <textarea id="description" name="description" placeholder="Короткий опис діяльності"></textarea>
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Створити компанію</button>
+            <a href="/Company" class="btn-muted">Скасувати</a>
+        </div>
+    </form>
+</div>

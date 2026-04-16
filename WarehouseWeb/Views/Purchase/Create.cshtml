@@ -1,0 +1,286 @@
+@{
+    ViewData["Title"] = "Реєстрація закупівлі";
+    var suppliers = ViewBag.Suppliers as List<WarehouseWeb.Models.Supplier> ?? new List<WarehouseWeb.Models.Supplier>();
+    var contracts = ViewBag.Contracts as List<WarehouseWeb.Models.SupplierContract> ?? new List<WarehouseWeb.Models.SupplierContract>();
+    var products = ViewBag.Products as List<WarehouseWeb.Models.Product> ?? new List<WarehouseWeb.Models.Product>();
+    var zones = ViewBag.Zones as List<WarehouseWeb.Models.StorageZone> ?? new List<WarehouseWeb.Models.StorageZone>();
+
+    var form = Context?.Request?.HasFormContentType == true ? Context.Request.Form : null;
+
+    var selectedSupplierId = form?["supplierId"].ToString() ??
+                             (ViewBag.SelectedSupplierId != null ? ViewBag.SelectedSupplierId.ToString() : string.Empty) ??
+                             string.Empty;
+    var selectedContractId = form?["supplierContractId"].ToString() ??
+                             (ViewBag.SelectedContractId != null ? ViewBag.SelectedContractId.ToString() : string.Empty) ??
+                             string.Empty;
+    var selectedProductId = form?["productId"].ToString() ??
+                            (ViewBag.SelectedProductId != null ? ViewBag.SelectedProductId.ToString() : string.Empty) ??
+                            string.Empty;
+    var selectedStorageZoneId = form?["storageZoneId"].ToString() ??
+                                (ViewBag.SelectedStorageZoneId != null ? ViewBag.SelectedStorageZoneId.ToString() : string.Empty) ??
+                                string.Empty;
+    var selectedQualityStatus = form?["qualityStatus"].ToString();
+    var directReceiptChecked = string.Equals(form?["directReceipt"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+    var directSourceName = form?["directSourceName"].ToString() ?? string.Empty;
+    var selectedDirectPaymentMethod = form?["directPaymentMethod"].ToString();
+
+    if (string.IsNullOrWhiteSpace(selectedQualityStatus))
+    {
+        selectedQualityStatus = "Accepted";
+    }
+
+    if (string.IsNullOrWhiteSpace(selectedDirectPaymentMethod))
+    {
+        selectedDirectPaymentMethod = "Cash";
+    }
+
+    var postToInventoryChecked = string.IsNullOrWhiteSpace(form?["postToInventory"].ToString()) ||
+                                 string.Equals(form?["postToInventory"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    var defaultArrival = DateTime.Now.ToString("yyyy-MM-ddTHH:mm");
+    var arrivalValue = string.IsNullOrWhiteSpace(form?["arrivalDate"].ToString())
+        ? defaultArrival
+        : form?["arrivalDate"].ToString();
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Реєстрація закупівлі</h1>
+    <p class="page-subtitle">Фіксація поставки, умов оплати, контролю якості та оприбуткування на склад.</p>
+</section>
+
+<div class="panel" style="max-width: 980px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    <form method="post" class="form-grid">
+        <div class="full subcard" style="padding: 0.85rem;">
+            <label class="form-label" style="margin-bottom: 0;">
+                <input
+                    id="directReceipt"
+                    name="directReceipt"
+                    type="checkbox"
+                    value="true"
+                    @(directReceiptChecked ? "checked" : string.Empty)
+                    style="width: auto; margin-right: 0.45rem;" />
+                Пряме надходження (без постачальника), як у заготівлі
+            </label>
+            <p class="form-note mt-2 mb-0">
+                У цьому режимі замість постачальника фіксується особа, від якої прийнято товар.
+            </p>
+        </div>
+
+        <div id="directReceiptFields" class="full subcard" style="padding: 0.85rem; display:@(directReceiptChecked ? "block" : "none");">
+            <div class="form-grid">
+                <div>
+                    <label class="form-label" for="directSourceName">Від кого прийнято</label>
+                    <input id="directSourceName" name="directSourceName" value="@directSourceName" placeholder="Напр. Степан Іванович" />
+                </div>
+
+                <div>
+                    <label class="form-label" for="directPaymentMethod">Спосіб оплати</label>
+                    <select id="directPaymentMethod" name="directPaymentMethod">
+                        <option value="Cash" selected="@(selectedDirectPaymentMethod == "Cash" ? "selected" : null)">Готівка</option>
+                        <option value="Card" selected="@(selectedDirectPaymentMethod == "Card" ? "selected" : null)">Карта</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="form-label" for="supplierId">Постачальник</label>
+            <select id="supplierId" name="supplierId" required="@(directReceiptChecked ? null : "required")">
+                <option value="">Оберіть постачальника</option>
+                @foreach (var supplier in suppliers)
+                {
+                    <option value="@supplier.Id" selected="@(selectedSupplierId == supplier.Id.ToString() ? "selected" : null)">
+                        @supplier.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="supplierContractId">Договір (опційно)</label>
+            <select id="supplierContractId" name="supplierContractId">
+                <option value="">Без договору</option>
+                @foreach (var contract in contracts)
+                {
+                    <option
+                        value="@contract.Id"
+                        data-supplier-id="@contract.SupplierId"
+                        selected="@(selectedContractId == contract.Id.ToString() ? "selected" : null)">
+                        @contract.ContractNumber (@contract.Supplier?.Name)
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="productId">Товар</label>
+            <select id="productId" name="productId" required>
+                <option value="">Оберіть товар</option>
+                @foreach (var product in products)
+                {
+                    <option value="@product.Id" selected="@(selectedProductId == product.Id.ToString() ? "selected" : null)">
+                        @product.Name (@product.Quantity @product.Unit)
+                    </option>
+                }
+            </select>
+            <p class="form-note">Якщо потрібного товару немає, спочатку створіть його в розділі "Товари".</p>
+        </div>
+
+        <div>
+            <label class="form-label" for="storageZoneId">Зона приймання (опційно)</label>
+            <select id="storageZoneId" name="storageZoneId">
+                <option value="">Без зміни зони</option>
+                @foreach (var zone in zones)
+                {
+                    <option value="@zone.Id" selected="@(selectedStorageZoneId == zone.Id.ToString() ? "selected" : null)">
+                        @zone.Name (@zone.Type) - @zone.Warehouse?.Name
+                    </option>
+                }
+            </select>
+            <p class="form-note">При виборі зони товар буде прив'язаний до неї після оприбуткування.</p>
+        </div>
+
+        <div>
+            <label class="form-label" for="quantity">Кількість</label>
+            <input id="quantity" name="quantity" type="number" step="0.001" min="0.001" required value="@(form?["quantity"].ToString() ?? string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="unitPrice">Ціна за одиницю</label>
+            <input id="unitPrice" name="unitPrice" type="number" step="0.01" min="0" required value="@(form?["unitPrice"].ToString() ?? string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="arrivalDate">Дата надходження</label>
+            <input id="arrivalDate" name="arrivalDate" type="datetime-local" required value="@arrivalValue" />
+        </div>
+
+        <div>
+            <label class="form-label" for="paymentDueDate">Оплатити до (опційно)</label>
+            <input id="paymentDueDate" name="paymentDueDate" type="date" value="@(form?["paymentDueDate"].ToString() ?? string.Empty)" />
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="paymentTerms">Умови оплати</label>
+            <textarea id="paymentTerms" name="paymentTerms" maxlength="600" placeholder="Напр. 50% передоплата, 50% через 10 днів">@(form?["paymentTerms"].ToString() ?? string.Empty)</textarea>
+        </div>
+
+        <div>
+            <label class="form-label" for="qualityStatus">Статус контролю якості</label>
+            <select id="qualityStatus" name="qualityStatus">
+                <option value="Pending" selected="@(selectedQualityStatus == "Pending" ? "selected" : null)">Очікує контроль</option>
+                <option value="Accepted" selected="@(selectedQualityStatus == "Accepted" ? "selected" : null)">Прийнято</option>
+                <option value="AcceptedWithRemarks" selected="@(selectedQualityStatus == "AcceptedWithRemarks" ? "selected" : null)">Прийнято з зауваженнями</option>
+                <option value="Rejected" selected="@(selectedQualityStatus == "Rejected" ? "selected" : null)">Брак / відхилено</option>
+            </select>
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="qualityNotes">Примітки контролю якості</label>
+            <textarea id="qualityNotes" name="qualityNotes" maxlength="600" placeholder="Результати перевірки, коментарі, невідповідності">@(form?["qualityNotes"].ToString() ?? string.Empty)</textarea>
+        </div>
+
+        <div>
+            <label class="form-label" for="invoiceNumber">Номер накладної (опційно)</label>
+            <input id="invoiceNumber" name="invoiceNumber" maxlength="80" value="@(form?["invoiceNumber"].ToString() ?? string.Empty)" />
+        </div>
+
+        <div>
+            <label class="form-label" for="acceptanceActNumber">Номер акта приймання (опційно)</label>
+            <input id="acceptanceActNumber" name="acceptanceActNumber" maxlength="80" value="@(form?["acceptanceActNumber"].ToString() ?? string.Empty)" />
+        </div>
+
+        <div class="full subcard" style="padding: 0.85rem;">
+            <label class="form-label" style="margin-bottom: 0;">
+                <input
+                    id="postToInventory"
+                    name="postToInventory"
+                    type="checkbox"
+                    value="true"
+                    @(postToInventoryChecked ? "checked" : string.Empty)
+                    style="width: auto; margin-right: 0.45rem;" />
+                Автоматично оприбуткувати на склад
+            </label>
+            <p class="form-note mt-2 mb-0">
+                Якщо якість = "Брак / відхилено", оприбуткування буде вимкнено автоматично.
+            </p>
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Зберегти закупівлю</button>
+            <a href="/Purchase" class="btn-muted">Скасувати</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var supplierSelect = document.getElementById("supplierId");
+        var contractSelect = document.getElementById("supplierContractId");
+        var qualityStatusSelect = document.getElementById("qualityStatus");
+        var postToInventory = document.getElementById("postToInventory");
+        var directReceiptCheckbox = document.getElementById("directReceipt");
+        var directReceiptFields = document.getElementById("directReceiptFields");
+        var directSourceInput = document.getElementById("directSourceName");
+        var directPaymentSelect = document.getElementById("directPaymentMethod");
+
+        function syncContracts() {
+            var supplierId = supplierSelect.value;
+            var options = contractSelect.querySelectorAll("option[data-supplier-id]");
+
+            options.forEach(function (option) {
+                var isVisible = !supplierId || option.getAttribute("data-supplier-id") === supplierId;
+                option.hidden = !isVisible;
+
+                if (!isVisible && option.selected) {
+                    option.selected = false;
+                }
+            });
+        }
+
+        function syncInventoryCheckbox() {
+            var isRejected = qualityStatusSelect.value === "Rejected";
+            if (isRejected) {
+                postToInventory.checked = false;
+                postToInventory.disabled = true;
+            } else {
+                postToInventory.disabled = false;
+            }
+        }
+
+        function syncDirectReceiptMode() {
+            var directMode = directReceiptCheckbox && directReceiptCheckbox.checked;
+
+            if (directMode) {
+                supplierSelect.required = false;
+                supplierSelect.disabled = true;
+                contractSelect.disabled = true;
+                directReceiptFields.style.display = "block";
+                directSourceInput.required = true;
+                directPaymentSelect.required = true;
+            } else {
+                supplierSelect.required = true;
+                supplierSelect.disabled = false;
+                contractSelect.disabled = false;
+                directReceiptFields.style.display = "none";
+                directSourceInput.required = false;
+                directPaymentSelect.required = false;
+            }
+        }
+
+        supplierSelect.addEventListener("change", syncContracts);
+        qualityStatusSelect.addEventListener("change", syncInventoryCheckbox);
+        if (directReceiptCheckbox) {
+            directReceiptCheckbox.addEventListener("change", syncDirectReceiptMode);
+        }
+
+        syncDirectReceiptMode();
+        syncContracts();
+        syncInventoryCheckbox();
+    })();
+</script>

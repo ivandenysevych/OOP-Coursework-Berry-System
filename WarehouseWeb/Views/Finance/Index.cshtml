@@ -1,0 +1,292 @@
+﻿@model WarehouseWeb.ViewModels.FinanceDashboardViewModel
+
+@{
+    ViewData["Title"] = "Фінанси";
+
+    string TransactionTypeLabel(WarehouseWeb.Models.FinanceTransactionType type)
+    {
+        return type switch
+        {
+            WarehouseWeb.Models.FinanceTransactionType.TopUp => "Поповнення",
+            WarehouseWeb.Models.FinanceTransactionType.Transfer => "Переказ",
+            WarehouseWeb.Models.FinanceTransactionType.Adjustment => "Коригування",
+            _ => type.ToString()
+        };
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Фінанси компаній і працівників</h1>
+    <p class="page-subtitle">
+        Ведіть баланс компанії, складів і заготівельників: видавайте кошти на руки та контролюйте залишки.
+    </p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+<div class="panel mb-3">
+    <h2 class="section-title">Поповнити баланс компанії</h2>
+    <form method="post" action="/Finance/TopUpCompany" class="form-grid">
+        <div>
+            <label class="form-label" for="companyId">Компанія</label>
+            <select id="companyId" name="companyId" required>
+                <option value="">Оберіть компанію</option>
+                @foreach (var company in Model.Companies)
+                {
+                    <option value="@company.Company.Id">@company.Company.Name</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="topupAmount">Сума, грн</label>
+            <input id="topupAmount" name="amount" type="number" step="0.01" min="0.01" required />
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="topupNotes">Коментар (опційно)</label>
+            <input id="topupNotes" name="notes" maxlength="300" placeholder="Наприклад: стартовий бюджет на тиждень" />
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Поповнити</button>
+        </div>
+    </form>
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Переказ з компанії на баланс заготівельника</h2>
+    <form method="post" action="/Finance/TransferCompanyToCollector" class="form-grid mb-3">
+        <div>
+            <label class="form-label" for="companyTransferCompanyId">Компанія</label>
+            <select id="companyTransferCompanyId" name="companyId" required>
+                <option value="">Оберіть компанію</option>
+                @foreach (var companySection in Model.Companies)
+                {
+                    <option value="@companySection.Company.Id">@companySection.Company.Name</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="collectorAccountId">Заготівельник</label>
+            <select id="collectorAccountId" name="collectorAccountId" required>
+                <option value="">Оберіть заготівельника</option>
+                @foreach (var companySection in Model.Companies)
+                {
+                    foreach (var collectorAccount in companySection.CollectorAccounts)
+                    {
+                        <option value="@collectorAccount.Id" data-company-id="@companySection.Company.Id">@collectorAccount.DisplayLabel()</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="collectorTransferAmount">Сума, грн</label>
+            <input id="collectorTransferAmount" name="amount" type="number" step="0.01" min="0.01" required />
+        </div>
+
+        <div>
+            <label class="form-label" for="collectorTransferNotes">Коментар (опційно)</label>
+            <input id="collectorTransferNotes" name="notes" maxlength="300" placeholder="Наприклад: видано аванс на заготівлю" />
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Переказати заготівельнику</button>
+        </div>
+    </form>
+
+    <h2 class="section-title">Переказ між рахунками</h2>
+    <form method="post" action="/Finance/Transfer" class="form-grid">
+        <div>
+            <label class="form-label" for="fromAccountId">З рахунку</label>
+            <select id="fromAccountId" name="fromAccountId" required>
+                <option value="">Оберіть рахунок</option>
+                @foreach (var account in Model.AccountOptions)
+                {
+                    <option value="@account.Id">@account.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="toAccountId">На рахунок</label>
+            <select id="toAccountId" name="toAccountId" required>
+                <option value="">Оберіть рахунок</option>
+                @foreach (var account in Model.AccountOptions)
+                {
+                    <option value="@account.Id">@account.Label</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="transferAmount">Сума, грн</label>
+            <input id="transferAmount" name="amount" type="number" step="0.01" min="0.01" required />
+        </div>
+
+        <div>
+            <label class="form-label" for="transferNotes">Коментар (опційно)</label>
+            <input id="transferNotes" name="notes" maxlength="300" placeholder="Наприклад: видано заготівельнику на закупівлю" />
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Виконати переказ</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        const companySelect = document.getElementById("companyTransferCompanyId");
+        const collectorSelect = document.getElementById("collectorAccountId");
+
+        if (!companySelect || !collectorSelect) {
+            return;
+        }
+
+        const options = Array.from(collectorSelect.options);
+
+        function syncCollectors() {
+            const selectedCompanyId = companySelect.value;
+            collectorSelect.value = "";
+
+            options.forEach(option => {
+                if (!option.value) {
+                    option.hidden = false;
+                    option.disabled = false;
+                    return;
+                }
+
+                const optionCompanyId = option.getAttribute("data-company-id");
+                const visible = selectedCompanyId && optionCompanyId === selectedCompanyId;
+                option.hidden = !visible;
+                option.disabled = !visible;
+            });
+        }
+
+        companySelect.addEventListener("change", syncCollectors);
+        syncCollectors();
+    })();
+</script>
+<div class="panel mb-3">
+    <h2 class="section-title">Баланс по компаніях</h2>
+
+    @if (Model.Companies.Count == 0)
+    {
+        <div class="empty-state">Немає компаній для відображення.</div>
+    }
+    else
+    {
+        @foreach (var companySection in Model.Companies)
+        {
+            <div class="subcard mb-3">
+                <h3 class="section-title">@companySection.Company.Name</h3>
+
+                <div class="kpi-grid mb-2">
+                    <article class="kpi-card">
+                        <p class="kpi-label">Баланс компанії</p>
+                        <p class="kpi-value">@companySection.CompanyAccount.Balance.ToString("0.00") грн</p>
+                    </article>
+
+                    <article class="kpi-card">
+                        <p class="kpi-label">Склади з рахунками</p>
+                        <p class="kpi-value">@companySection.WarehouseAccounts.Count</p>
+                    </article>
+
+                    <article class="kpi-card">
+                        <p class="kpi-label">Заготівельники з балансом</p>
+                        <p class="kpi-value">@companySection.CollectorAccounts.Count</p>
+                    </article>
+                </div>
+
+                <div class="table-wrap mt-3">
+                    <table class="table-modern" style="min-width: 780px;">
+                        <thead>
+                            <tr>
+                                <th>Тип рахунку</th>
+                                <th>Назва</th>
+                                <th>Баланс</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var account in companySection.WarehouseAccounts)
+                            {
+                                <tr>
+                                    <td>Склад</td>
+                                    <td>@account.Name</td>
+                                    <td>@account.Balance.ToString("0.00") грн</td>
+                                </tr>
+                            }
+                            @foreach (var account in companySection.CollectorAccounts)
+                            {
+                                <tr>
+                                    <td>Заготівельник</td>
+                                    <td>@account.Name</td>
+                                    <td>@account.Balance.ToString("0.00") грн</td>
+                                </tr>
+                            }
+                            @if (companySection.WarehouseAccounts.Count == 0 && companySection.CollectorAccounts.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="3">Додаткові рахунки ще не створені.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<div class="panel">
+    <h2 class="section-title">Останні фінансові операції</h2>
+
+    @if (Model.RecentTransactions.Count == 0)
+    {
+        <div class="empty-state">Фінансових операцій поки немає.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-modern" style="min-width: 960px;">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Тип</th>
+                        <th>Звідки</th>
+                        <th>Куди</th>
+                        <th>Сума</th>
+                        <th>Хто створив</th>
+                        <th>Коментар</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var transaction in Model.RecentTransactions)
+                    {
+                        <tr>
+                            <td>@transaction.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@TransactionTypeLabel(transaction.Type)</td>
+                            <td>@(transaction.FromAccount?.DisplayLabel() ?? "Зовнішнє поповнення")</td>
+                            <td>@(transaction.ToAccount?.DisplayLabel() ?? "Зовнішнє списання")</td>
+                            <td>@transaction.Amount.ToString("0.00") грн</td>
+                            <td>@transaction.CreatedBy</td>
+                            <td>@(string.IsNullOrWhiteSpace(transaction.Notes) ? "—" : transaction.Notes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+

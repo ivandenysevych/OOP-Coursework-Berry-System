@@ -1,0 +1,35 @@
+﻿@{
+    ViewData["Title"] = "Вхід";
+    var returnUrl = ViewBag.ReturnUrl as string ?? string.Empty;
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Вхід до системи</h1>
+    <p class="page-subtitle">Увійдіть за логіном або email, щоб перейти до меню управління компанією.</p>
+</section>
+
+<div class="panel" style="max-width: 620px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    <form method="post" class="form-grid">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+        <div class="full">
+            <label class="form-label" for="username">Логін або email</label>
+            <input id="username" name="username" placeholder="ivan@example.com" required />
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="password">Пароль</label>
+            <input id="password" name="password" type="password" placeholder="Введіть пароль" required />
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Увійти</button>
+            <a href="/Auth/Register?returnUrl=@System.Uri.EscapeDataString(returnUrl)" class="btn-muted">Створити акаунт</a>
+        </div>
+    </form>
+</div>

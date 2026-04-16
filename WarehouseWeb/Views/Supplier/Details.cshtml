@@ -1,0 +1,239 @@
+@model WarehouseWeb.ViewModels.SupplierDetailsViewModel
+
+@{
+    ViewData["Title"] = "Деталі постачальника";
+    var supplier = Model.Supplier;
+    var canManage = ViewBag.CanManage is bool flag && flag;
+
+    string PurchaseStatusLabel(WarehouseWeb.Models.PurchaseStatus status)
+    {
+        return status switch
+        {
+            WarehouseWeb.Models.PurchaseStatus.Draft => "Чернетка",
+            WarehouseWeb.Models.PurchaseStatus.Received => "Прийнято",
+            WarehouseWeb.Models.PurchaseStatus.Rejected => "Відхилено",
+            WarehouseWeb.Models.PurchaseStatus.Cancelled => "Скасовано",
+            _ => status.ToString()
+        };
+    }
+
+    string QualityStatusLabel(WarehouseWeb.Models.PurchaseQualityStatus status)
+    {
+        return status switch
+        {
+            WarehouseWeb.Models.PurchaseQualityStatus.Pending => "Очікує контроль",
+            WarehouseWeb.Models.PurchaseQualityStatus.Accepted => "Прийнято",
+            WarehouseWeb.Models.PurchaseQualityStatus.AcceptedWithRemarks => "Прийнято з зауваженнями",
+            WarehouseWeb.Models.PurchaseQualityStatus.Rejected => "Брак / відхилено",
+            _ => status.ToString()
+        };
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Постачальник: @supplier.Name</h1>
+    <p class="page-subtitle">Контакти, договори постачання та останні закупівлі.</p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+<div class="kpi-grid mb-3">
+    <article class="kpi-card">
+        <p class="kpi-label">Статус</p>
+        <p class="kpi-value">@(supplier.IsActive ? "Активний" : "Неактивний")</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Договорів</p>
+        <p class="kpi-value">@Model.Contracts.Count</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Поставок</p>
+        <p class="kpi-value">@Model.RecentPurchases.Count</p>
+    </article>
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Контактні дані та умови</h2>
+    <div class="form-grid">
+        <div>
+            <p class="form-note">Контактна особа</p>
+            <strong>@(string.IsNullOrWhiteSpace(supplier.ContactPerson) ? "—" : supplier.ContactPerson)</strong>
+        </div>
+        <div>
+            <p class="form-note">Email</p>
+            <strong>@(string.IsNullOrWhiteSpace(supplier.Email) ? "—" : supplier.Email)</strong>
+        </div>
+        <div>
+            <p class="form-note">Телефон</p>
+            <strong>@(string.IsNullOrWhiteSpace(supplier.Phone) ? "—" : supplier.Phone)</strong>
+        </div>
+        <div>
+            <p class="form-note">Додано</p>
+            <strong>@supplier.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</strong>
+        </div>
+        <div class="full">
+            <p class="form-note">Умови співпраці</p>
+            <strong>@(string.IsNullOrWhiteSpace(supplier.CooperationTerms) ? "—" : supplier.CooperationTerms)</strong>
+        </div>
+        <div class="full">
+            <p class="form-note">Цінові параметри / примітки</p>
+            <strong>@(string.IsNullOrWhiteSpace(supplier.PricingNotes) ? "—" : supplier.PricingNotes)</strong>
+        </div>
+    </div>
+</div>
+
+@if (canManage)
+{
+    <div class="panel mb-3">
+        <h2 class="section-title">Додати договір постачання</h2>
+        <form method="post" action="/Supplier/AddContract" class="form-grid">
+            <input type="hidden" name="supplierId" value="@supplier.Id" />
+
+            <div>
+                <label class="form-label" for="contractNumber">Номер договору</label>
+                <input id="contractNumber" name="contractNumber" maxlength="80" required />
+            </div>
+
+            <div>
+                <label class="form-label" for="startDate">Початок дії</label>
+                <input id="startDate" name="startDate" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div>
+                <label class="form-label" for="endDate">Завершення (опційно)</label>
+                <input id="endDate" name="endDate" type="date" />
+            </div>
+
+            <div class="full">
+                <label class="form-label" for="paymentTerms">Умови оплати</label>
+                <textarea id="paymentTerms" name="paymentTerms" maxlength="600" placeholder="Напр. відстрочка 14 днів"></textarea>
+            </div>
+
+            <div class="full">
+                <label class="form-label" for="deliveryTerms">Умови поставки</label>
+                <textarea id="deliveryTerms" name="deliveryTerms" maxlength="600" placeholder="Напр. доставка на склад постачальником"></textarea>
+            </div>
+
+            <div class="full subcard" style="padding: 0.85rem;">
+                <label class="form-label" style="margin-bottom: 0;">
+                    <input name="isActive" type="checkbox" value="true" checked style="width: auto; margin-right: 0.45rem;" />
+                    Договір активний
+                </label>
+            </div>
+
+            <div class="full actions-row mb-0">
+                <button type="submit" class="btn-brand">Додати договір</button>
+                <a href="/Purchase/Create?supplierId=@supplier.Id" class="btn-muted">Створити закупівлю</a>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="panel mb-3">
+    <h2 class="section-title">Договори постачання</h2>
+    @if (Model.Contracts.Count == 0)
+    {
+        <div class="empty-state">Для постачальника ще немає жодного договору.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-modern">
+                <thead>
+                    <tr>
+                        <th>Номер</th>
+                        <th>Період дії</th>
+                        <th>Оплата</th>
+                        <th>Поставка</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var contract in Model.Contracts)
+                    {
+                        <tr>
+                            <td><strong>@contract.ContractNumber</strong></td>
+                            <td>
+                                @contract.StartDate.ToLocalTime().ToString("yyyy-MM-dd")
+                                —
+                                @(contract.EndDate.HasValue ? contract.EndDate.Value.ToLocalTime().ToString("yyyy-MM-dd") : "безстроково")
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(contract.PaymentTerms) ? "—" : contract.PaymentTerms)</td>
+                            <td>@(string.IsNullOrWhiteSpace(contract.DeliveryTerms) ? "—" : contract.DeliveryTerms)</td>
+                            <td>
+                                @if (contract.IsActive)
+                                {
+                                    <span class="badge-soft badge-ok">Активний</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-soft badge-muted">Неактивний</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="panel">
+    <h2 class="section-title">Останні закупівлі</h2>
+    <div class="actions-row">
+        <a href="/Purchase/Create?supplierId=@supplier.Id" class="btn-brand">Нова закупівля</a>
+        <a href="/Purchase" class="btn-muted">Весь журнал закупівель</a>
+    </div>
+
+    @if (Model.RecentPurchases.Count == 0)
+    {
+        <div class="empty-state">Закупівлі для цього постачальника ще не реєструвались.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-modern">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Товар</th>
+                        <th>К-сть</th>
+                        <th>Ціна</th>
+                        <th>Сума</th>
+                        <th>Статус</th>
+                        <th>Якість</th>
+                        <th>Документи</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var purchase in Model.RecentPurchases)
+                    {
+                        <tr>
+                            <td>@purchase.ArrivalDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@purchase.Product?.Name</td>
+                            <td>@purchase.Quantity</td>
+                            <td>@purchase.UnitPrice.ToString("0.00")</td>
+                            <td>@purchase.TotalCost.ToString("0.00")</td>
+                            <td>@PurchaseStatusLabel(purchase.Status)</td>
+                            <td>@QualityStatusLabel(purchase.QualityStatus)</td>
+                            <td>
+                                <span class="form-note">Накладна: @purchase.InvoiceNumber</span><br />
+                                <span class="form-note">Акт: @purchase.AcceptanceActNumber</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

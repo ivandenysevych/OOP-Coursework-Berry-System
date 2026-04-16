@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] == null ? "Склад ягід" : $"{ViewData["Title"]} - Склад ягід")</title>
+    <script type="importmap"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/WarehouseWeb.styles.css" asp-append-version="true" />
+</head>
+<body>
+    @{
+        var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+        var isCollector = string.Equals(
+            currentUser?.Role?.Name,
+            WarehouseWeb.Models.RoleNames.Collector,
+            System.StringComparison.OrdinalIgnoreCase);
+        var roleLabel = currentUser?.Role?.Name switch
+        {
+            WarehouseWeb.Models.RoleNames.Owner => "Власник",
+            WarehouseWeb.Models.RoleNames.Manager => "Менеджер",
+            WarehouseWeb.Models.RoleNames.Worker => "Працівник",
+            WarehouseWeb.Models.RoleNames.Collector => "Заготівельник",
+            _ => currentUser?.Role?.Name
+        };
+        var homeLink = currentUser == null
+            ? "/Home/Index"
+            : isCollector ? "/Home/CollectorDashboard" : "/Home/Dashboard";
+        var menuAction = isCollector ? "CollectorDashboard" : "Dashboard";
+    }
+
+    <header class="app-header">
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-xxl">
+                <a class="navbar-brand brand-link" href="@homeLink">
+                    <span class="brand-badge">WMS</span>
+                    <span class="brand-title">Склад Ягід</span>
+                </a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                        aria-controls="mainNav" aria-expanded="false" aria-label="Перемкнути навігацію">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        @if (currentUser == null)
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Головна</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/#features">Можливості</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/#solutions">Рішення</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/#services">Послуги</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/#training">Навчання</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Privacy">Про систему</a></li>
+                        }
+                        else
+                        {
+                            @if (isCollector)
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="CollectorDashboard">Моє меню</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Procurement" asp-action="Index">Заготівлі</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Procurement" asp-action="Create">Нова заготівля</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Product" asp-action="Index">Каталог товарів</a></li>
+                            }
+                            else
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Dashboard">Меню</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Company" asp-action="Index">Компанії</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Product" asp-action="Index">Товари</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Supplier" asp-action="Index">Постачальники</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Purchase" asp-action="Index">Закупівлі</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Procurement" asp-action="Index">Заготівлі</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Sale" asp-action="Index">Продажі</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Movement" asp-action="Index">Рухи</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Finance" asp-action="Index">Фінанси</a></li>
+                                <li class="nav-item"><a class="nav-link" asp-controller="Analytics" asp-action="Index">Аналітика</a></li>
+                            }
+                        }
+                    </ul>
+
+                    <div class="auth-strip">
+                        @if (currentUser == null)
+                        {
+                            <a class="btn-muted" asp-controller="Auth" asp-action="Register">Реєстрація</a>
+                            <a class="btn-brand" asp-controller="Auth" asp-action="Login">Увійти</a>
+                        }
+                        else
+                        {
+                            <a class="btn-muted" asp-controller="Home" asp-action="@menuAction">Моє меню</a>
+                            <span class="user-chip">
+                                @currentUser.Name
+                                <span class="role">@roleLabel</span>
+                            </span>
+                            <a class="btn-muted" asp-controller="Auth" asp-action="Logout">Вийти</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-xxl page-wrap">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="footer-note">
+        <div class="container-xxl">
+            Курсова робота: веб-система обліку закупівлі та зберігання ягідної продукції.
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,88 @@
+﻿@{
+    ViewData["Title"] = "Головна";
+    var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+    var menuLink = string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Collector, System.StringComparison.OrdinalIgnoreCase)
+        ? "/Home/CollectorDashboard"
+        : "/Home/Dashboard";
+}
+
+<section class="page-hero landing-hero">
+    <p class="landing-kicker">WMS Berry Platform</p>
+    <h1 class="page-title">Єдина система для обліку закупівель, складу та процесів компанії</h1>
+    <p class="page-subtitle">
+        Цифрове рішення для підприємств, які хочуть контролювати поставки, залишки, переміщення та
+        аналітику в одному середовищі без таблиць і ручного дублювання даних.
+    </p>
+    <div class="actions-row mt-3 mb-0">
+        @if (currentUser == null)
+        {
+            <a href="/Auth/Register" class="btn-brand">Реєстрація</a>
+            <a href="/Auth/Login" class="btn-muted">Вхід</a>
+        }
+        else
+        {
+            <a href="@menuLink" class="btn-brand">Перейти в меню управління</a>
+            <a href="/Auth/Logout" class="btn-muted">Вийти</a>
+        }
+    </div>
+</section>
+
+<section id="features" class="panel mb-3">
+    <h2 class="section-title">Можливості</h2>
+    <div class="kpi-grid">
+        <article class="kpi-card">
+            <p class="kpi-label">Складський облік</p>
+            <p class="kpi-value">Товари, зони, рухи</p>
+            <p class="form-note">Контроль надходжень, списань і переміщень між зонами складу.</p>
+        </article>
+        <article class="kpi-card">
+            <p class="kpi-label">Закупівлі</p>
+            <p class="kpi-value">Постачальники, договори</p>
+            <p class="form-note">Ведення журналу закупівель з умовами оплати та контролем якості.</p>
+        </article>
+        <article class="kpi-card">
+            <p class="kpi-label">Аналітика</p>
+            <p class="kpi-value">Звіти та KPI</p>
+            <p class="form-note">Оперативний перегляд вартості запасів і ключових показників.</p>
+        </article>
+    </div>
+</section>
+
+<section id="solutions" class="panel mb-3">
+    <h2 class="section-title">Рішення</h2>
+    <ul class="list-clean">
+        <li>Для власника: централізоване управління компаніями, ролями та доступами.</li>
+        <li>Для менеджера: планування закупівель і контроль стану запасів по складах.</li>
+        <li>Для працівника: швидка операційна робота з товарами та рухами без зайвих кроків.</li>
+    </ul>
+</section>
+
+<section id="services" class="panel mb-3">
+    <h2 class="section-title">Послуги</h2>
+    <div class="form-grid">
+        <div>
+            <p class="kpi-label">Впровадження</p>
+            <p class="form-note">Налаштування структури компанії, складів і ролей під ваш процес.</p>
+        </div>
+        <div>
+            <p class="kpi-label">Супровід</p>
+            <p class="form-note">Оновлення системи, підтримка користувачів і контроль якості даних.</p>
+        </div>
+        <div class="full">
+            <p class="kpi-label">Адаптація</p>
+            <p class="form-note">Розширення модулів під ваші бізнес-вимоги та сценарії обліку.</p>
+        </div>
+    </div>
+</section>
+
+<section id="training" class="panel">
+    <h2 class="section-title">Навчання</h2>
+    <p class="form-note mb-2">
+        Для старту достатньо зареєструватись і увійти в систему. Далі вам доступне головне меню управління
+        компанією з усіма робочими модулями.
+    </p>
+    <div class="actions-row mb-0">
+        <a href="/Auth/Register" class="btn-brand">Почати навчання з реєстрації</a>
+        <a href="/Auth/Login" class="btn-muted">Увійти в існуючий акаунт</a>
+    </div>
+</section>

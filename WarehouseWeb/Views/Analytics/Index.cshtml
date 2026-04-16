@@ -1,0 +1,189 @@
+﻿@model WarehouseWeb.ViewModels.AnalyticsDashboardViewModel
+
+@{
+    ViewData["Title"] = "Аналітика";
+
+    decimal MaxValue(IEnumerable<WarehouseWeb.ViewModels.AnalyticsBarPointViewModel> points)
+    {
+        return points.Any() ? points.Max(x => x.Value) : 0;
+    }
+
+    decimal MaxDailyTurnover(IReadOnlyList<WarehouseWeb.ViewModels.AnalyticsDailyTurnoverViewModel> points)
+    {
+        if (points.Count == 0)
+        {
+            return 0;
+        }
+
+        return points.Max(x => Math.Max(x.PurchaseAmount, x.SaleAmount));
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Аналітика складу</h1>
+    <p class="page-subtitle">Ключові показники вартості запасів, рухів і фінансового обороту в графічному форматі.</p>
+</section>
+
+<div class="kpi-grid mb-3">
+    <article class="kpi-card">
+        <p class="kpi-label">Середня ціна</p>
+        <p class="kpi-value">@Model.AveragePrice.ToString("0.00")</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Загальна вартість запасів</p>
+        <p class="kpi-value">@Model.StockValue.ToString("0.00")</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Оновлень у журналі</p>
+        <p class="kpi-value">@Model.Notifications.Count</p>
+    </article>
+</div>
+
+<div class="chart-grid mb-3">
+    <div class="panel">
+        <h2 class="section-title">Топ товарів за вартістю запасу</h2>
+
+        @if (Model.TopProductsByValue.Count == 0)
+        {
+            <div class="empty-state">Дані відсутні.</div>
+        }
+        else
+        {
+            var maxValue = MaxValue(Model.TopProductsByValue);
+
+            <div class="bar-chart">
+                @foreach (var item in Model.TopProductsByValue)
+                {
+                    var width = maxValue > 0 ? Math.Round((double)(item.Value / maxValue) * 100.0, 1) : 0;
+
+                    <div class="bar-row">
+                        <div class="bar-label" title="@item.Label">@item.Label</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width:@($"{width}%");"></div>
+                        </div>
+                        <div class="bar-value">@item.Value.ToString("0.00")</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="panel">
+        <h2 class="section-title">Вартість запасів по компаніях</h2>
+
+        @if (Model.StockByCompany.Count == 0)
+        {
+            <div class="empty-state">Дані відсутні.</div>
+        }
+        else
+        {
+            var maxValue = MaxValue(Model.StockByCompany);
+
+            <div class="bar-chart">
+                @foreach (var item in Model.StockByCompany)
+                {
+                    var width = maxValue > 0 ? Math.Round((double)(item.Value / maxValue) * 100.0, 1) : 0;
+
+                    <div class="bar-row">
+                        <div class="bar-label" title="@item.Label">@item.Label</div>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-fill-secondary" style="width:@($"{width}%");"></div>
+                        </div>
+                        <div class="bar-value">@item.Value.ToString("0.00")</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Оборот закупівель і продажів (останні 14 днів)</h2>
+
+    @if (Model.DailyTurnover.Count == 0)
+    {
+        <div class="empty-state">Дані відсутні.</div>
+    }
+    else
+    {
+        var maxTurnover = MaxDailyTurnover(Model.DailyTurnover);
+
+        <div class="bar-chart">
+            @foreach (var day in Model.DailyTurnover)
+            {
+                var purchaseWidth = maxTurnover > 0 ? Math.Round((double)(day.PurchaseAmount / maxTurnover) * 100.0, 1) : 0;
+                var saleWidth = maxTurnover > 0 ? Math.Round((double)(day.SaleAmount / maxTurnover) * 100.0, 1) : 0;
+
+                <div class="bar-row multi">
+                    <div class="bar-label">@day.Label</div>
+                    <div class="bar-multi-track">
+                        <div class="bar-track compact">
+                            <div class="bar-fill" style="width:@($"{purchaseWidth}%");"></div>
+                        </div>
+                        <div class="bar-track compact">
+                            <div class="bar-fill bar-fill-secondary" style="width:@($"{saleWidth}%");"></div>
+                        </div>
+                    </div>
+                    <div class="bar-value">
+                        <span class="d-block">З: @day.PurchaseAmount.ToString("0.00")</span>
+                        <span class="d-block">П: @day.SaleAmount.ToString("0.00")</span>
+                    </div>
+                </div>
+            }
+        </div>
+        <p class="form-note mt-2 mb-0">З - закупівлі, П - продажі.</p>
+    }
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Розподіл рухів товару</h2>
+
+    @if (Model.MovementBreakdown.Count == 0)
+    {
+        <div class="empty-state">Поки що немає рухів для аналізу.</div>
+    }
+    else
+    {
+        var maxValue = MaxValue(Model.MovementBreakdown);
+
+        <div class="bar-chart">
+            @foreach (var item in Model.MovementBreakdown)
+            {
+                var width = maxValue > 0 ? Math.Round((double)(item.Value / maxValue) * 100.0, 1) : 0;
+
+                <div class="bar-row">
+                    <div class="bar-label">@item.Label</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width:@($"{width}%");"></div>
+                    </div>
+                    <div class="bar-value">@item.Value</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Згенерований звіт</h2>
+    <pre class="report-block">@Model.Report</pre>
+</div>
+
+<div class="panel">
+    <h2 class="section-title">Сповіщення Observer</h2>
+
+    @if (Model.Notifications.Count == 0)
+    {
+        <div class="empty-state">Поки що немає подій для відображення.</div>
+    }
+    else
+    {
+        <ul class="list-clean">
+            @foreach (var note in Model.Notifications)
+            {
+                <li>@note</li>
+            }
+        </ul>
+    }
+</div>

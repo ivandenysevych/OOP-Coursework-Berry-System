@@ -1,0 +1,208 @@
+﻿@{
+    ViewData["Title"] = "Нова заготівля";
+
+    var products = ViewBag.Products as List<WarehouseWeb.Models.Product> ?? new List<WarehouseWeb.Models.Product>();
+    var availableCompanies = ViewBag.AvailableCompanies as List<WarehouseWeb.Models.Company> ?? new List<WarehouseWeb.Models.Company>();
+    var units = ViewBag.Units as IReadOnlyList<string> ?? new List<string> { "kg", "g", "pcs", "box" };
+    var form = Context?.Request?.HasFormContentType == true ? Context.Request.Form : null;
+
+    var defaultProductId = ViewBag.DefaultProductId != null ? ViewBag.DefaultProductId.ToString() : string.Empty;
+    var defaultCompanyId = ViewBag.DefaultCompanyId != null ? ViewBag.DefaultCompanyId.ToString() : string.Empty;
+    var selectedProductId = form?["productId"].ToString();
+    if (string.IsNullOrWhiteSpace(selectedProductId) && ViewBag.SelectedProductId != null)
+    {
+        selectedProductId = ViewBag.SelectedProductId.ToString();
+    }
+
+    if (string.IsNullOrWhiteSpace(selectedProductId))
+    {
+        selectedProductId = defaultProductId;
+    }
+
+    selectedProductId ??= string.Empty;
+
+    var selectedCompanyId = form?["companyId"].ToString();
+    if (string.IsNullOrWhiteSpace(selectedCompanyId) && ViewBag.SelectedCompanyId != null)
+    {
+        selectedCompanyId = ViewBag.SelectedCompanyId.ToString();
+    }
+
+    if (string.IsNullOrWhiteSpace(selectedCompanyId))
+    {
+        selectedCompanyId = defaultCompanyId;
+    }
+
+    selectedCompanyId ??= string.Empty;
+
+    var selectedPaymentMethod = form?["paymentMethod"].ToString();
+    if (string.IsNullOrWhiteSpace(selectedPaymentMethod))
+    {
+        selectedPaymentMethod = WarehouseWeb.Models.ProcurementPaymentMethod.Cash.ToString();
+    }
+
+    var defaultUnit = ViewBag.DefaultUnit as string ?? "kg";
+    var selectedUnit = form?["unit"].ToString() ??
+                       (ViewBag.SelectedUnit as string) ??
+                       defaultUnit;
+
+    var defaultUnitPrice = ViewBag.DefaultUnitPrice as string ?? string.Empty;
+    var unitPriceValue = form?["unitPrice"].ToString() ?? defaultUnitPrice;
+
+    var collectedAtValue = string.IsNullOrWhiteSpace(form?["collectedAt"].ToString())
+        ? DateTime.Now.ToString("yyyy-MM-ddTHH:mm")
+        : form?["collectedAt"].ToString();
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Реєстрація заготівлі</h1>
+    <p class="page-subtitle">Запис потрапляє у кошик заготівельника за категорією, після чого менеджер може перевезти кошик на склад.</p>
+</section>
+
+<div class="panel" style="max-width: 920px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    <form method="post" class="form-grid">
+        <div class="full">
+            <label class="form-label" for="companyId">Компанія</label>
+            <select id="companyId" name="companyId" required>
+                <option value="">Оберіть компанію</option>
+                @foreach (var company in availableCompanies)
+                {
+                    <option value="@company.Id" selected="@(selectedCompanyId == company.Id.ToString() ? "selected" : null)">
+                        @company.Name
+                    </option>
+                }
+            </select>
+            <p class="form-note">Витрати будуть списані з рахунку заготівельника або сейфу цієї компанії.</p>
+        </div>
+
+        <div>
+            <label class="form-label" for="productId">Товар</label>
+            <select id="productId" name="productId" required>
+                <option value="">Оберіть товар</option>
+                @foreach (var product in products)
+                {
+                    <option value="@product.Id"
+                            data-unit="@product.Unit"
+                            selected="@(selectedProductId == product.Id.ToString() ? "selected" : null)">
+                        @product.Name (@product.Category, @product.Unit)
+                    </option>
+                }
+            </select>
+            <p class="form-note">Система запам'ятовує обраний товар на поточний робочий день.</p>
+        </div>
+
+        <div>
+            <label class="form-label" for="supplierPersonName">Від кого прийнято</label>
+            <input id="supplierPersonName"
+                   name="supplierPersonName"
+                   maxlength="180"
+                   placeholder="Наприклад: Степан"
+                   value="@(form?["supplierPersonName"].ToString() ?? string.Empty)"
+                   required />
+        </div>
+
+        <div>
+            <label class="form-label" for="quantity">Кількість</label>
+            <input id="quantity"
+                   name="quantity"
+                   type="number"
+                   step="0.001"
+                   min="0.001"
+                   value="@(form?["quantity"].ToString() ?? string.Empty)"
+                   required />
+        </div>
+
+        <div>
+            <label class="form-label" for="unit">Одиниця</label>
+            <select id="unit" name="unit" required>
+                @foreach (var itemUnit in units)
+                {
+                    <option value="@itemUnit" selected="@(string.Equals(selectedUnit, itemUnit, System.StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                        @itemUnit
+                    </option>
+                }
+            </select>
+            <p class="form-note">Одиниця має збігатися з одиницею вибраного товару.</p>
+        </div>
+
+        <div>
+            <label class="form-label" for="unitPrice">Ціна за одиницю</label>
+            <input id="unitPrice"
+                   name="unitPrice"
+                   type="number"
+                   step="0.01"
+                   min="0"
+                   value="@unitPriceValue"
+                   required />
+            <p class="form-note">Ціна за одиницю запам'ятовується на сьогодні, поки ви її не зміните.</p>
+        </div>
+
+        <div>
+            <label class="form-label" for="paymentMethod">Спосіб оплати</label>
+            <select id="paymentMethod" name="paymentMethod">
+                <option value="@WarehouseWeb.Models.ProcurementPaymentMethod.Cash" selected="@(selectedPaymentMethod == WarehouseWeb.Models.ProcurementPaymentMethod.Cash.ToString() ? "selected" : null)">Готівка</option>
+                <option value="@WarehouseWeb.Models.ProcurementPaymentMethod.Card" selected="@(selectedPaymentMethod == WarehouseWeb.Models.ProcurementPaymentMethod.Card.ToString() ? "selected" : null)">Карта</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label" for="collectedAt">Дата і час приймання</label>
+            <input id="collectedAt" name="collectedAt" type="datetime-local" value="@collectedAtValue" required />
+        </div>
+
+        <div class="full">
+            <label class="form-label" for="notes">Примітка</label>
+            <textarea id="notes"
+                      name="notes"
+                      maxlength="500"
+                      placeholder="Наприклад: вологість у нормі, тара замовника">@(form?["notes"].ToString() ?? string.Empty)</textarea>
+        </div>
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Зберегти заготівлю</button>
+            <a href="/Procurement" class="btn-muted">Скасувати</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var productSelect = document.getElementById("productId");
+        var unitSelect = document.getElementById("unit");
+
+        function syncUnitWithProduct() {
+            var option = productSelect.options[productSelect.selectedIndex];
+            if (!option) {
+                return;
+            }
+
+            var productUnit = option.getAttribute("data-unit");
+            if (!productUnit) {
+                return;
+            }
+
+            var normalizedProductUnit = productUnit.toLowerCase();
+            var found = false;
+
+            for (var i = 0; i < unitSelect.options.length; i++) {
+                var value = unitSelect.options[i].value.toLowerCase();
+                if (value === normalizedProductUnit) {
+                    unitSelect.value = unitSelect.options[i].value;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                unitSelect.value = normalizedProductUnit;
+            }
+        }
+
+        productSelect.addEventListener("change", syncUnitWithProduct);
+        syncUnitWithProduct();
+    })();
+</script>

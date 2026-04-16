@@ -1,0 +1,695 @@
+﻿@model WarehouseWeb.Models.Company
+
+@{
+    ViewData["Title"] = "Деталі компанії";
+    var users = ViewBag.Users as List<WarehouseWeb.Models.User> ?? new List<WarehouseWeb.Models.User>();
+    var roles = ViewBag.Roles as List<WarehouseWeb.Models.Role> ?? new List<WarehouseWeb.Models.Role>();
+    var invitations = ViewBag.Invitations as List<WarehouseWeb.Models.CompanyInvitation> ?? new List<WarehouseWeb.Models.CompanyInvitation>();
+    var generatedInviteLink = ViewBag.GeneratedInviteLink as string ?? string.Empty;
+
+    var isCompanyOwner = ViewBag.IsCompanyOwner is bool ownerFlag && ownerFlag;
+    var canManageStructure = ViewBag.CanManageStructure is bool structureFlag && structureFlag;
+
+    string RoleLabel(string? roleName)
+    {
+        return roleName switch
+        {
+            WarehouseWeb.Models.RoleNames.Owner => "Власник",
+            WarehouseWeb.Models.RoleNames.Manager => "Менеджер",
+            WarehouseWeb.Models.RoleNames.Worker => "Працівник",
+            WarehouseWeb.Models.RoleNames.Collector => "Заготівельник",
+            _ => roleName ?? "-"
+        };
+    }
+
+    List<string> RolePermissions(WarehouseWeb.Models.Role? role)
+    {
+        var permissions = (role?.PermissionsRaw ?? string.Empty)
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        if (permissions.Count == 0)
+        {
+            if (string.Equals(role?.Name, WarehouseWeb.Models.RoleNames.Owner, StringComparison.OrdinalIgnoreCase))
+            {
+                permissions = new List<string>
+                {
+                    "all",
+                    "company.manage_members",
+                    "company.manage_structure",
+                    "company.delete",
+                    "warehouse.delete",
+                    "supplier.manage",
+                    "purchase.manage",
+                    "finance.manage"
+                };
+            }
+            else if (string.Equals(role?.Name, WarehouseWeb.Models.RoleNames.Manager, StringComparison.OrdinalIgnoreCase))
+            {
+                permissions = new List<string>
+                {
+                    "company.manage_structure",
+                    "inventory.manage",
+                    "movements.execute",
+                    "supplier.manage",
+                    "purchase.manage",
+                    "finance.manage"
+                };
+            }
+            else if (string.Equals(role?.Name, WarehouseWeb.Models.RoleNames.Worker, StringComparison.OrdinalIgnoreCase))
+            {
+                permissions = new List<string>
+                {
+                    "inventory.view",
+                    "movements.execute",
+                    "purchase.view"
+                };
+            }
+        }
+
+        return permissions;
+    }
+
+    string PermissionLabel(string permission)
+    {
+        return permission switch
+        {
+            "all" => "Повний доступ",
+            "company.manage_members" => "Призначення ролей працівникам",
+            "company.manage_structure" => "Керування складами та зонами",
+            "company.delete" => "Видалення компанії",
+            "warehouse.delete" => "Видалення складів",
+            "inventory.manage" => "Керування товарами",
+            "inventory.view" => "Перегляд товарів",
+            "movements.execute" => "Виконання рухів товару",
+            "analytics.view" => "Перегляд аналітики",
+            "supplier.manage" => "Керування постачальниками",
+            "purchase.manage" => "Керування закупівлями",
+            "purchase.view" => "Перегляд закупівель",
+            "finance.manage" => "Керування фінансами",
+            _ => permission
+        };
+    }
+
+    double ZoneCurrentLoad(WarehouseWeb.Models.StorageZone zone)
+    {
+        return zone.Products.Sum(p => (double)p.Quantity);
+    }
+
+    double WarehouseTotalCapacity(WarehouseWeb.Models.Warehouse warehouse)
+    {
+        return warehouse.Zones
+            .Where(z => z.Capacity > 0)
+            .Sum(z => z.Capacity);
+    }
+
+    double WarehouseCurrentLoad(WarehouseWeb.Models.Warehouse warehouse)
+    {
+        return warehouse.Zones.Sum(z => ZoneCurrentLoad(z));
+    }
+
+    string FillPercentLabel(double current, double capacity)
+    {
+        if (capacity <= 0)
+        {
+            return "—";
+        }
+
+        var percent = (current / capacity) * 100.0;
+        return $"{Math.Round(percent, 1):0.0}%";
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Компанія: @Model.Name</h1>
+    <p class="page-subtitle">@Model.Description</p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+<div class="kpi-grid mb-3">
+    <article class="kpi-card">
+        <p class="kpi-label">Дата створення</p>
+        <p class="kpi-value">@Model.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Кількість складів</p>
+        <p class="kpi-value">@Model.Warehouses.Count</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Кількість працівників</p>
+        <p class="kpi-value">@Model.Employees.Count</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Завантаження складів</p>
+        @{
+            var totalCapacity = Model.Warehouses.Sum(w => WarehouseTotalCapacity(w));
+            var totalLoad = Model.Warehouses.Sum(w => WarehouseCurrentLoad(w));
+        }
+        <p class="kpi-value">@FillPercentLabel(totalLoad, totalCapacity)</p>
+        <p class="form-note">@Math.Round(totalLoad, 2) / @Math.Round(totalCapacity, 2)</p>
+    </article>
+</div>
+
+@if (canManageStructure)
+{
+    <div class="panel mb-3">
+        <h2 class="section-title">Редагувати компанію</h2>
+        <form method="post" action="/Company/UpdateCompany" class="form-grid">
+            <input type="hidden" name="companyId" value="@Model.Id" />
+
+            <div>
+                <label class="form-label" for="companyName">Назва компанії</label>
+                <input id="companyName" name="name" required value="@Model.Name" />
+            </div>
+
+            <div class="full">
+                <label class="form-label" for="companyDescription">Опис компанії</label>
+                <input id="companyDescription" name="description" value="@Model.Description" />
+            </div>
+
+            <div class="full actions-row mb-0">
+                <button type="submit" class="btn-brand">Оновити компанію</button>
+            </div>
+        </form>
+    </div>
+}
+
+@if (canManageStructure)
+{
+    <div class="panel mb-3">
+        <h2 class="section-title">Додати склад</h2>
+        <form method="post" action="/Company/AddWarehouse" class="form-grid">
+            <input type="hidden" name="companyId" value="@Model.Id" />
+
+            <div>
+                <label class="form-label" for="warehouseName">Назва складу</label>
+                <input id="warehouseName" name="name" required />
+            </div>
+
+            <div>
+                <label class="form-label" for="warehouseLocation">Локація</label>
+                <input id="warehouseLocation" name="location" placeholder="м. Київ" />
+            </div>
+
+            <div class="full">
+                <label class="form-label" for="warehouseDescription">Опис складу</label>
+                <input id="warehouseDescription" name="description" />
+            </div>
+
+            <div class="full actions-row mb-0">
+                <button type="submit" class="btn-brand">Додати склад</button>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="panel mb-3">
+    <h2 class="section-title">Склади та зони</h2>
+
+    @if (Model.Warehouses.Count == 0)
+    {
+        <div class="empty-state">Для цієї компанії ще немає складів.</div>
+    }
+    else
+    {
+        @foreach (var warehouse in Model.Warehouses)
+        {
+            var warehouseCapacity = WarehouseTotalCapacity(warehouse);
+            var warehouseLoad = WarehouseCurrentLoad(warehouse);
+            var warehouseFillPercent = warehouseCapacity > 0
+                ? Math.Round((warehouseLoad / warehouseCapacity) * 100.0, 1)
+                : 0;
+
+            <div class="subcard mb-3">
+                <h3 class="section-title">@warehouse.Name (@warehouse.Location)</h3>
+                <p class="form-note">@warehouse.Description</p>
+
+                <div class="kpi-grid mb-2">
+                    <article class="kpi-card">
+                        <p class="kpi-label">Поточне завантаження</p>
+                        <p class="kpi-value">@Math.Round(warehouseLoad, 2)</p>
+                    </article>
+                    <article class="kpi-card">
+                        <p class="kpi-label">Сумарна місткість</p>
+                        <p class="kpi-value">@(warehouseCapacity > 0 ? Math.Round(warehouseCapacity, 2).ToString() : "Не задано")</p>
+                    </article>
+                    <article class="kpi-card">
+                        <p class="kpi-label">Заповнення</p>
+                        <p class="kpi-value">@(warehouseCapacity > 0 ? $"{warehouseFillPercent:0.0}%" : "—")</p>
+                    </article>
+                </div>
+
+                @if (warehouseCapacity > 0)
+                {
+                    <div style="height:10px; background:#eceff3; border-radius:6px; overflow:hidden; margin:0 0 10px 0;">
+                        <div style="height:100%; width:@Math.Min(warehouseFillPercent, 100)%; background:#2f7d32;"></div>
+                    </div>
+                }
+
+                @if (canManageStructure)
+                {
+                    <form method="post" action="/Company/UpdateWarehouse" class="form-grid mt-3">
+                        <input type="hidden" name="companyId" value="@Model.Id" />
+                        <input type="hidden" name="warehouseId" value="@warehouse.Id" />
+
+                        <div>
+                            <label class="form-label" for="editWarehouseName_@warehouse.Id">Назва складу</label>
+                            <input id="editWarehouseName_@warehouse.Id" name="name" required value="@warehouse.Name" />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="editWarehouseLocation_@warehouse.Id">Локація</label>
+                            <input id="editWarehouseLocation_@warehouse.Id" name="location" value="@warehouse.Location" />
+                        </div>
+
+                        <div class="full">
+                            <label class="form-label" for="editWarehouseDescription_@warehouse.Id">Опис складу</label>
+                            <input id="editWarehouseDescription_@warehouse.Id" name="description" value="@warehouse.Description" />
+                        </div>
+
+                        <div class="full actions-row mb-0">
+                            <button type="submit" class="btn-muted">Оновити склад</button>
+                        </div>
+                    </form>
+
+                    <form method="post" action="/Company/AddZone" class="form-grid mt-3">
+                        <input type="hidden" name="warehouseId" value="@warehouse.Id" />
+
+                        <div>
+                            <label class="form-label" for="zoneName_@warehouse.Id">Назва зони</label>
+                            <input id="zoneName_@warehouse.Id" name="name" placeholder="Зона 1" required />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="zoneType_@warehouse.Id">Тип</label>
+                            <input id="zoneType_@warehouse.Id" name="type" placeholder="Охолоджена / Морозильна" required />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="zoneCapacity_@warehouse.Id">Місткість</label>
+                            <input id="zoneCapacity_@warehouse.Id" name="capacity" type="number" step="0.1" min="0" />
+                        </div>
+
+                        <div class="actions-row" style="align-items:flex-end;">
+                            <button type="submit" class="btn-muted">Додати зону</button>
+                        </div>
+                    </form>
+                }
+
+                <div class="table-wrap mt-3">
+                    <table class="table-modern" style="min-width: 620px;">
+                        <thead>
+                            <tr>
+                                <th>Назва зони</th>
+                                <th>Тип</th>
+                                <th>Поточне завантаження</th>
+                                <th>Місткість</th>
+                                <th>Заповнення</th>
+                                @if (canManageStructure)
+                                {
+                                    <th>Редагування</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (warehouse.Zones.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="@(canManageStructure ? 6 : 5)">Зони відсутні.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var zone in warehouse.Zones)
+                                {
+                                    var zoneLoad = ZoneCurrentLoad(zone);
+                                    var zoneFillPercent = zone.Capacity > 0
+                                        ? Math.Round((zoneLoad / zone.Capacity) * 100.0, 1)
+                                        : 0;
+
+                                    <tr>
+                                        <td>@zone.Name</td>
+                                        <td>@zone.Type</td>
+                                        <td>@Math.Round(zoneLoad, 2)</td>
+                                        <td>@zone.Capacity</td>
+                                        <td>@(zone.Capacity > 0 ? $"{zoneFillPercent:0.0}%" : "—")</td>
+                                        @if (canManageStructure)
+                                        {
+                                            <td>
+                                                <details>
+                                                    <summary class="action-link" style="cursor:pointer;">Редагувати</summary>
+                                                    <form method="post" action="/Company/UpdateZone" class="form-grid mt-2" style="min-width: 520px;">
+                                                        <input type="hidden" name="companyId" value="@Model.Id" />
+                                                        <input type="hidden" name="zoneId" value="@zone.Id" />
+
+                                                        <div>
+                                                            <label class="form-label" for="editZoneName_@zone.Id">Назва</label>
+                                                            <input id="editZoneName_@zone.Id" name="name" required value="@zone.Name" />
+                                                        </div>
+
+                                                        <div>
+                                                            <label class="form-label" for="editZoneType_@zone.Id">Тип</label>
+                                                            <input id="editZoneType_@zone.Id" name="type" required value="@zone.Type" />
+                                                        </div>
+
+                                                        <div>
+                                                            <label class="form-label" for="editZoneCapacity_@zone.Id">Місткість</label>
+                                                            <input id="editZoneCapacity_@zone.Id" name="capacity" type="number" step="0.1" min="0" value="@zone.Capacity" />
+                                                        </div>
+
+                                                        <div class="actions-row" style="align-items:flex-end;">
+                                                            <button type="submit" class="btn-muted">Зберегти</button>
+                                                        </div>
+                                                    </form>
+                                                </details>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (isCompanyOwner)
+                {
+                    <details class="mt-3">
+                        <summary class="action-link danger" style="cursor:pointer;">Видалити склад</summary>
+
+                        <form method="post" action="/Company/DeleteWarehouse" class="form-grid mt-3" style="max-width: 620px;">
+                            <input type="hidden" name="companyId" value="@Model.Id" />
+                            <input type="hidden" name="warehouseId" value="@warehouse.Id" />
+
+                            <div class="full">
+                                <label class="form-label" for="deleteWarehousePassword_@warehouse.Id">Підтвердіть паролем</label>
+                                <input id="deleteWarehousePassword_@warehouse.Id" name="password" type="password" required autocomplete="current-password" />
+                            </div>
+
+                            <div class="full actions-row mb-0">
+                                <button type="submit" class="action-link danger">Видалити склад</button>
+                            </div>
+                        </form>
+                    </details>
+                }
+            </div>
+        }
+    }
+</div>
+
+@if (isCompanyOwner)
+{
+    <div class="panel mb-3">
+        <h2 class="section-title">Додати працівника до компанії</h2>
+        <form method="post" action="/Company/AddEmployee" class="form-grid">
+            <input type="hidden" name="companyId" value="@Model.Id" />
+
+            <div>
+                <label class="form-label" for="userId">Користувач</label>
+                <select id="userId" name="userId">
+                    @foreach (var user in users)
+                    {
+                        <option value="@user.Id">@user.Name (@user.Email)</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="form-label" for="roleId">Роль у компанії</label>
+                <select id="roleId" name="roleId">
+                    @foreach (var role in roles)
+                    {
+                        <option value="@role.Id">@RoleLabel(role.Name)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="full actions-row mb-0">
+                <button type="submit" class="btn-brand">Додати працівника</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="panel mb-3">
+        <h2 class="section-title">Запросити працівника посиланням</h2>
+        <form method="post" action="/Company/CreateInvitation" class="form-grid">
+            <input type="hidden" name="companyId" value="@Model.Id" />
+
+            <div>
+                <label class="form-label" for="inviteRoleId">Роль для запрошення</label>
+                <select id="inviteRoleId" name="roleId">
+                    @foreach (var role in roles)
+                    {
+                        <option value="@role.Id">@RoleLabel(role.Name)</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="form-label" for="inviteEmail">Email працівника (опційно)</label>
+                <input id="inviteEmail" name="email" type="email" placeholder="worker@example.com" />
+            </div>
+
+            <div>
+                <label class="form-label" for="inviteDays">Термін дії (днів)</label>
+                <input id="inviteDays" name="validDays" type="number" min="1" max="60" value="7" />
+            </div>
+
+            <div class="full actions-row mb-0">
+                <button type="submit" class="btn-brand">Створити посилання</button>
+            </div>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(generatedInviteLink))
+        {
+            <div class="subcard mt-3">
+                <p class="form-note mb-1">Нове посилання-запрошення:</p>
+                <input value="@generatedInviteLink" readonly onclick="this.select();" />
+            </div>
+        }
+
+        <div class="table-wrap mt-3">
+            <table class="table-modern" style="min-width: 860px;">
+                <thead>
+                    <tr>
+                        <th>Роль</th>
+                        <th>Email</th>
+                        <th>Статус</th>
+                        <th>Діє до</th>
+                        <th>Посилання</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (invitations.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6">Запрошень поки немає.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var invite in invitations)
+                        {
+                            var isExpired = invite.ExpiresAt < DateTime.UtcNow;
+                            var canRevoke = !invite.IsUsed && !isExpired;
+                            var inviteLink = Url.Action("Register", "Auth", new { invite = invite.Token }, Context.Request.Scheme) ?? string.Empty;
+
+                            <tr>
+                                <td>@RoleLabel(invite.Role?.Name)</td>
+                                <td>@(string.IsNullOrWhiteSpace(invite.Email) ? "—" : invite.Email)</td>
+                                <td>
+                                    @if (invite.IsUsed)
+                                    {
+                                        <span class="badge-soft badge-ok">Використано</span>
+                                    }
+                                    else if (isExpired)
+                                    {
+                                        <span class="badge-soft badge-muted">Протерміновано</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-soft badge-ok">Активне</span>
+                                    }
+                                </td>
+                                <td>@invite.ExpiresAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>
+                                    @if (!invite.IsUsed && !isExpired)
+                                    {
+                                        <input value="@inviteLink" readonly onclick="this.select();" />
+                                    }
+                                    else
+                                    {
+                                        <span class="form-note">Недоступно</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (canRevoke)
+                                    {
+                                        <form method="post" action="/Company/RevokeInvitation" onsubmit="return confirm('Відкликати це запрошення?');">
+                                            <input type="hidden" name="companyId" value="@Model.Id" />
+                                            <input type="hidden" name="invitationId" value="@invite.Id" />
+                                            <button type="submit" class="action-link danger">Відкликати</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="panel mb-3">
+    <h2 class="section-title">Працівники компанії</h2>
+
+    @if (Model.Employees.Count == 0)
+    {
+        <div class="empty-state">До компанії ще не прив'язано працівників.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-modern" style="min-width: 880px;">
+                <thead>
+                    <tr>
+                        <th>Користувач</th>
+                        <th>Email</th>
+                        <th>Роль</th>
+                        <th>Дозволи ролі</th>
+                        <th>Дата додавання</th>
+                        @if (isCompanyOwner)
+                        {
+                            <th>Зміна ролі</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var employee in Model.Employees)
+                    {
+                        var employeePermissions = RolePermissions(employee.Role);
+
+                        <tr>
+                            <td>@employee.User?.Name</td>
+                            <td>@employee.User?.Email</td>
+                            <td>@RoleLabel(employee.Role?.Name)</td>
+                            <td>
+                                @if (employeePermissions.Count == 0)
+                                {
+                                    <span class="badge-soft badge-muted">Немає явних дозволів</span>
+                                }
+                                else
+                                {
+                                    foreach (var permission in employeePermissions)
+                                    {
+                                        <span class="badge-soft badge-ok me-1 mb-1">@PermissionLabel(permission)</span>
+                                    }
+                                }
+                            </td>
+                            <td>@employee.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+
+                            @if (isCompanyOwner)
+                            {
+                                <td>
+                                    <form method="post" action="/Company/UpdateEmployeeRole" class="actions-row mb-0">
+                                        <input type="hidden" name="companyId" value="@Model.Id" />
+                                        <input type="hidden" name="companyUserId" value="@employee.Id" />
+
+                                        <select name="roleId" style="min-width: 150px;">
+                                            @foreach (var role in roles)
+                                            {
+                                                <option value="@role.Id" selected="@(employee.RoleId == role.Id ? "selected" : null)">@RoleLabel(role.Name)</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn-muted">Оновити</button>
+                                    </form>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Ролі та можливості</h2>
+
+    @if (roles.Count == 0)
+    {
+        <div class="empty-state">Ролі не налаштовані.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-modern" style="min-width: 720px;">
+                <thead>
+                    <tr>
+                        <th>Роль</th>
+                        <th>Опис</th>
+                        <th>Дозволений функціонал</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var role in roles)
+                    {
+                        var permissions = RolePermissions(role);
+
+                        <tr>
+                            <td><strong>@RoleLabel(role.Name)</strong></td>
+                            <td>@role.Description</td>
+                            <td>
+                                @if (permissions.Count == 0)
+                                {
+                                    <span class="badge-soft badge-muted">Не задано</span>
+                                }
+                                else
+                                {
+                                    foreach (var permission in permissions)
+                                    {
+                                        <span class="badge-soft badge-ok me-1 mb-1">@PermissionLabel(permission)</span>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (isCompanyOwner)
+{
+    <div class="panel danger-panel">
+        <h2 class="section-title" style="color:#7a1f30;">Небезпечні дії</h2>
+        <p class="form-note">Видалення компанії безповоротно прибере склади, зони та зв'язки працівників із компанією.</p>
+
+        <form method="post" action="/Company/DeleteCompany" class="form-grid" style="max-width: 620px;">
+            <input type="hidden" name="companyId" value="@Model.Id" />
+
+            <div class="full">
+                <label class="form-label" for="deleteCompanyPassword">Підтвердіть паролем</label>
+                <input id="deleteCompanyPassword" name="password" type="password" required autocomplete="current-password" />
+            </div>
+
+            <div class="full actions-row mb-0">
+                <button type="submit" class="action-link danger">Видалити компанію</button>
+            </div>
+        </form>
+    </div>
+}

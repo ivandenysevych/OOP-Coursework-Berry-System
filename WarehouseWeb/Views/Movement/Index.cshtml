@@ -1,0 +1,125 @@
+﻿@model List<WarehouseWeb.Models.Movement>
+
+@{
+    ViewData["Title"] = "Рухи товару";
+    var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+    var canDelete = !string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Worker, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Collector, StringComparison.OrdinalIgnoreCase);
+
+    string MovementTypeLabel(WarehouseWeb.Models.MovementType type)
+    {
+        return type switch
+        {
+            WarehouseWeb.Models.MovementType.Add => "Надходження",
+            WarehouseWeb.Models.MovementType.Remove => "Списання",
+            WarehouseWeb.Models.MovementType.Move => "Переміщення",
+            _ => type.ToString()
+        };
+    }
+
+    string ZoneLabel(WarehouseWeb.Models.StorageZone? zone)
+    {
+        if (zone == null)
+        {
+            return "—";
+        }
+
+        var warehouse = zone.Warehouse?.Name ?? "Склад";
+        var company = zone.Warehouse?.Company?.Name ?? "Без компанії";
+
+        return $"{zone.Name} ({warehouse} / {company})";
+    }
+
+    bool IsInterCompanyMove(WarehouseWeb.Models.Movement movement)
+    {
+        var fromCompanyId = movement.FromZone?.Warehouse?.CompanyId;
+        var toCompanyId = movement.ToZone?.Warehouse?.CompanyId;
+
+        return movement.Type == WarehouseWeb.Models.MovementType.Move &&
+               fromCompanyId.HasValue &&
+               toCompanyId.HasValue &&
+               fromCompanyId.Value != toCompanyId.Value;
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Рухи товару</h1>
+    <p class="page-subtitle">Історія надходжень, списань та переміщень між зонами.</p>
+</section>
+
+<div class="actions-row">
+    <a href="/Movement/Create" class="btn-brand">Створити рух</a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">Поки що немає жодного запису руху.</div>
+}
+else
+{
+    <div class="table-wrap panel p-0">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Дата і час</th>
+                    <th>Тип руху</th>
+                    <th>Товар</th>
+                    <th>Кількість</th>
+                    <th>Звідки</th>
+                    <th>Куди</th>
+                    <th>Статус</th>
+                    @if (canDelete)
+                    {
+                        <th>Дії</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var movement in Model)
+                {
+                    <tr>
+                        <td>@movement.Date.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@MovementTypeLabel(movement.Type)</td>
+                        <td>@movement.Product?.Name</td>
+                        <td>@movement.Quantity</td>
+                        <td>@ZoneLabel(movement.FromZone)</td>
+                        <td>@ZoneLabel(movement.ToZone)</td>
+                        <td>
+                            @if (movement.IsExecuted)
+                            {
+                                <span class="badge-soft badge-ok">Виконано</span>
+                                @if (IsInterCompanyMove(movement))
+                                {
+                                    <span class="badge-soft badge-muted ms-1">Між компаніями</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge-soft badge-muted">Чернетка</span>
+                            }
+                        </td>
+                        @if (canDelete)
+                        {
+                            <td>
+                                <form method="post" action="/Movement/Delete" onsubmit="return confirm('Видалити цей рух?');">
+                                    <input type="hidden" name="id" value="@movement.Id" />
+                                    <button type="submit" class="action-link danger">Видалити</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

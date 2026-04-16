@@ -1,0 +1,109 @@
+﻿@model List<WarehouseWeb.Models.Product>
+
+@{
+    ViewData["Title"] = "Товари";
+    var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+    var isCollector = string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Collector, System.StringComparison.OrdinalIgnoreCase);
+    var isWorker = string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Worker, System.StringComparison.OrdinalIgnoreCase);
+    var canCleanup = !isCollector && !isWorker;
+    var totalStockValue = Model.Sum(p => p.Quantity * p.Price);
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Каталог товарів і залишки</h1>
+    <p class="page-subtitle">Перелік товарів, поточні залишки та прив'язка до зон складу.</p>
+</section>
+
+<div class="kpi-grid mb-3">
+    <article class="kpi-card">
+        <p class="kpi-label">Позицій у каталозі</p>
+        <p class="kpi-value">@Model.Count</p>
+    </article>
+
+    <article class="kpi-card">
+        <p class="kpi-label">Загальна вартість залишків</p>
+        <p class="kpi-value">@totalStockValue.ToString("0.00") грн</p>
+    </article>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+@if (!isCollector)
+{
+    <div class="actions-row">
+        <a href="/Product/Create" class="btn-brand">Додати товар</a>
+        @if (canCleanup)
+        {
+            <form method="post" action="/Product/ClearAllOperationalData" onsubmit="return confirm('Очистити всі операційні дані? Будуть видалені товари, рухи, закупівлі, продажі та заготівлі.');">
+                <button type="submit" class="btn-muted">Очистити всі операційні дані</button>
+            </form>
+        }
+    </div>
+}
+else
+{
+    <p class="form-note mb-3">Для ролі заготівельника доступний перегляд каталогу. Створення та редагування виконує менеджер або власник.</p>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">
+        У списку поки немає товарів. Додайте першу позицію, щоб почати облік.
+    </div>
+}
+else
+{
+    <div class="table-wrap panel p-0">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Назва</th>
+                    <th>Категорія</th>
+                    <th>Кількість</th>
+                    <th>Од.</th>
+                    <th>Ціна</th>
+                    <th>Сума</th>
+                    <th>Зона</th>
+                    <th>Хто змінював</th>
+                    <th>Коли змінено</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td><strong>@p.Name</strong></td>
+                        <td>@p.Category</td>
+                        <td>@p.Quantity</td>
+                        <td>@p.Unit</td>
+                        <td>@p.Price.ToString("0.00") грн</td>
+                        <td>@(Math.Round(p.Quantity * p.Price, 2).ToString("0.00")) грн</td>
+                        <td>@(p.Zone == null ? "—" : $"{p.Zone.Name} ({p.Zone.Type})")</td>
+                        <td>@p.LastModifiedBy</td>
+                        <td>@p.LastModifiedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @if (!isCollector)
+                            {
+                                <a href="/Product/Edit/@p.Id" class="action-link">Редагувати</a>
+                            }
+
+                            @if (!string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Worker, System.StringComparison.OrdinalIgnoreCase))
+                            {
+                                <a href="/Product/Delete/@p.Id" class="action-link danger">Видалити</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

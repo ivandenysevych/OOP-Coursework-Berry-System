@@ -1,0 +1,182 @@
+﻿@model WarehouseWeb.ViewModels.ProcurementIndexViewModel
+
+@{
+    ViewData["Title"] = "Журнал заготівель";
+    var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+
+    string PaymentMethodLabel(WarehouseWeb.Models.ProcurementPaymentMethod paymentMethod)
+    {
+        return paymentMethod switch
+        {
+            WarehouseWeb.Models.ProcurementPaymentMethod.Cash => "Готівка",
+            WarehouseWeb.Models.ProcurementPaymentMethod.Card => "Карта",
+            _ => paymentMethod.ToString()
+        };
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Журнал заготівель</h1>
+    <p class="page-subtitle">Приймання товару від населення, формування кошиків за категоріями і перевезення на склад.</p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+<div class="actions-row">
+    <a href="/Procurement/Create" class="btn-brand">Додати заготівлю</a>
+</div>
+
+<div class="panel mb-3">
+    <h2 class="section-title">Активні кошики за категоріями</h2>
+
+    @if (Model.ActiveBaskets.Count == 0)
+    {
+        <div class="empty-state">Активних кошиків поки немає.</div>
+    }
+    else
+    {
+        <div class="table-wrap p-0">
+            <table class="table-modern" style="min-width: 1020px;">
+                <thead>
+                    <tr>
+                        <th>Компанія</th>
+                        <th>Заготівельник</th>
+                        <th>Категорія</th>
+                        <th>Обсяг кошика</th>
+                        <th>Записів</th>
+                        <th>Сума</th>
+                        <th>Останнє оновлення</th>
+                        @if (Model.CanTransferToWarehouse)
+                        {
+                            <th>Перевезення</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var basket in Model.ActiveBaskets)
+                    {
+                        <tr>
+                            <td>@basket.CompanyName</td>
+                            <td>@basket.CollectorName</td>
+                            <td>@basket.Category</td>
+                            <td>@basket.QuantitySummary</td>
+                            <td>@basket.RecordsCount</td>
+                            <td>@basket.TotalCost.ToString("0.00")</td>
+                            <td>@basket.LastCollectedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            @if (Model.CanTransferToWarehouse)
+                            {
+                                <td>
+                                    <form method="post" action="/Procurement/TransferBasket" class="d-flex gap-2 align-items-center">
+                                        <input type="hidden" name="collectorUserId" value="@basket.CollectorUserId" />
+                                        <input type="hidden" name="companyId" value="@basket.CompanyId" />
+                                        <input type="hidden" name="category" value="@basket.Category" />
+                                        <select name="transferZoneId" required style="min-width: 220px;">
+                                            <option value="">Зона складу</option>
+                                            @foreach (var zone in Model.TransferZones)
+                                            {
+                                                <option value="@zone.Id">@zone.Name (@zone.Warehouse?.Name, @(zone.Warehouse?.Company?.Name ?? "Без компанії"))</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="action-link" onclick="return confirm('Перевезти весь кошик цієї категорії на склад?');">
+                                            Перевезти
+                                        </button>
+                                    </form>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (Model.Procurements.Count == 0)
+{
+    <div class="empty-state">
+        @(Model.IsCollector ? "У вас поки немає записів заготівель." : "Журнал заготівель порожній.")
+    </div>
+}
+else
+{
+    <div class="table-wrap panel p-0">
+        <table class="table-modern" style="min-width: 1320px;">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Компанія</th>
+                    <th>Заготівельник</th>
+                    <th>Категорія</th>
+                    <th>Від кого прийнято</th>
+                    <th>Товар</th>
+                    <th>К-сть</th>
+                    <th>Ціна</th>
+                    <th>Сума</th>
+                    <th>Оплата</th>
+                    <th>Списано з</th>
+                    <th>Статус</th>
+                    <th>Зона складу</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Procurements)
+                {
+                    var canDelete = Model.IsCollector
+                        ? item.CollectorUserId == currentUser?.Id
+                        : true;
+                    var categoryLabel = string.IsNullOrWhiteSpace(item.ProductCategory)
+                        ? item.Product?.Category
+                        : item.ProductCategory;
+
+                    <tr>
+                        <td>@item.CollectedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@(item.Company?.Name ?? "—")</td>
+                        <td>@item.CollectorName</td>
+                        <td>@categoryLabel</td>
+                        <td>@item.SupplierPersonName</td>
+                        <td>@item.Product?.Name</td>
+                        <td>@item.Quantity @item.Unit</td>
+                        <td>@item.UnitPrice.ToString("0.00") / @item.Unit</td>
+                        <td>@item.TotalCost.ToString("0.00")</td>
+                        <td>@PaymentMethodLabel(item.PaymentMethod)</td>
+                        <td>@(item.ExpenseAccount?.DisplayLabel() ?? "—")</td>
+                        <td>
+                            @if (item.IsTransferredToWarehouse)
+                            {
+                                <span class="badge-soft badge-ok">Перевезено</span>
+                                @if (item.TransferredAt.HasValue)
+                                {
+                                    <br />
+                                    <span class="form-note">@item.TransferredAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge-soft badge-muted">У кошику</span>
+                            }
+                        </td>
+                        <td>@(item.TransferZone?.Name ?? "—")</td>
+                        <td>
+                            @if (canDelete)
+                            {
+                                <form method="post" action="/Procurement/Delete" onsubmit="return confirm('Видалити цей запис заготівлі?');">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="action-link danger">Видалити</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

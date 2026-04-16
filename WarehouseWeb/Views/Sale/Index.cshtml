@@ -1,0 +1,85 @@
+﻿@model List<WarehouseWeb.Models.Sale>
+
+@{
+    ViewData["Title"] = "Журнал продажів";
+    var currentUser = WarehouseWeb.Controllers.AuthController.GetCurrentUser(Context);
+    var canManage = string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Owner, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(currentUser?.Role?.Name, WarehouseWeb.Models.RoleNames.Manager, StringComparison.OrdinalIgnoreCase);
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Журнал продажів</h1>
+    <p class="page-subtitle">Реєстрація продажів, контроль списання товару та відстеження виручки.</p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+@if (canManage)
+{
+    <div class="actions-row">
+        <a href="/Sale/Create" class="btn-brand">Зареєструвати продаж</a>
+        <a href="/Product" class="btn-muted">До товарів</a>
+    </div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">Поки що продажі не зареєстровані.</div>
+}
+else
+{
+    <div class="table-wrap panel p-0">
+        <table class="table-modern" style="min-width: 1180px;">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Товар</th>
+                    <th>К-сть</th>
+                    <th>Ціна</th>
+                    <th>Сума</th>
+                    <th>Клієнт</th>
+                    <th>Оплата</th>
+                    <th>Накладна</th>
+                    <th>Коментар</th>
+                    @if (canManage)
+                    {
+                        <th>Дії</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var sale in Model)
+                {
+                    <tr>
+                        <td>@sale.SaleDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@sale.Product?.Name</td>
+                        <td>@sale.Quantity</td>
+                        <td>@sale.UnitPrice.ToString("0.00")</td>
+                        <td>@sale.TotalAmount.ToString("0.00")</td>
+                        <td>@(string.IsNullOrWhiteSpace(sale.CustomerName) ? "—" : sale.CustomerName)</td>
+                        <td>@(string.IsNullOrWhiteSpace(sale.PaymentTerms) ? "—" : sale.PaymentTerms)</td>
+                        <td>@(string.IsNullOrWhiteSpace(sale.InvoiceNumber) ? "—" : sale.InvoiceNumber)</td>
+                        <td>@(string.IsNullOrWhiteSpace(sale.Notes) ? "—" : sale.Notes)</td>
+                        @if (canManage)
+                        {
+                            <td>
+                                <form method="post" action="/Sale/Delete" onsubmit="return confirm('Видалити цей продаж?');">
+                                    <input type="hidden" name="id" value="@sale.Id" />
+                                    <button type="submit" class="action-link danger">Видалити</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

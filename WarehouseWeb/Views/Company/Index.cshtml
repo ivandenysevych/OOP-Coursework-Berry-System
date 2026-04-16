@@ -1,0 +1,97 @@
+﻿@model List<WarehouseWeb.Models.Company>
+
+@{
+    ViewData["Title"] = "Компанії";
+
+    string CompanyFillLabel(WarehouseWeb.Models.Company company)
+    {
+        var totalCapacity = company.Warehouses
+            .SelectMany(w => w.Zones)
+            .Where(z => z.Capacity > 0)
+            .Sum(z => z.Capacity);
+
+        if (totalCapacity <= 0)
+        {
+            return "—";
+        }
+
+        var totalLoad = company.Warehouses
+            .SelectMany(w => w.Zones)
+            .Sum(z => z.Products.Sum(p => (double)p.Quantity));
+
+        var percent = Math.Round((totalLoad / totalCapacity) * 100.0, 1);
+        return $"{percent:0.0}% ({Math.Round(totalLoad, 1)}/{Math.Round(totalCapacity, 1)})";
+    }
+
+    string EmployeeNamesHint(WarehouseWeb.Models.Company company)
+    {
+        var names = company.Employees
+            .Select(e => e.User?.Name?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .OrderBy(name => name)
+            .ToList();
+
+        return names.Count == 0
+            ? "Працівників ще не додано."
+            : string.Join(", ", names!);
+    }
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Компанії та структура складів</h1>
+    <p class="page-subtitle">Створюйте компанії, керуйте складами, зонами та працівниками.</p>
+</section>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert-error mb-3">@ViewBag.Error</div>
+}
+
+@if (ViewBag.Success != null)
+{
+    <div class="alert-success mb-3">@ViewBag.Success</div>
+}
+
+<div class="actions-row">
+    <a href="/Company/Create" class="btn-brand">Створити компанію</a>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">Ще немає жодної компанії. Додайте першу, щоб почати роботу.</div>
+}
+else
+{
+    <div class="table-wrap panel p-0">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Назва</th>
+                    <th>Опис</th>
+                    <th>Створено</th>
+                    <th>Складів</th>
+                    <th>Працівників</th>
+                    <th>Заповнення складів</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var company in Model)
+                {
+                    <tr>
+                        <td><strong>@company.Name</strong></td>
+                        <td>@company.Description</td>
+                        <td>@company.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")</td>
+                        <td>@company.Warehouses.Count</td>
+                        <td title="@EmployeeNamesHint(company)" style="cursor: help;">@company.Employees.Count</td>
+                        <td>@CompanyFillLabel(company)</td>
+                        <td>
+                            <a href="/Company/Details/@company.Id" class="action-link">Деталі</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

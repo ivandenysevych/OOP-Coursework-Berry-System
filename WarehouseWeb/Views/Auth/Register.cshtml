@@ -1,0 +1,77 @@
+﻿@{
+    ViewData["Title"] = "Реєстрація";
+    var returnUrl = ViewBag.ReturnUrl as string ?? string.Empty;
+    var inviteToken = ViewBag.InviteToken as string ?? string.Empty;
+    var invitation = ViewBag.Invitation as WarehouseWeb.Models.CompanyInvitation;
+    var isInviteRegistration = invitation != null;
+}
+
+<section class="page-hero">
+    <h1 class="page-title">Реєстрація користувача</h1>
+    <p class="page-subtitle">Створіть обліковий запис і оберіть роль для входу в систему управління.</p>
+</section>
+
+<div class="panel" style="max-width: 700px;">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert-error">@ViewBag.Error</div>
+    }
+
+    @if (isInviteRegistration)
+    {
+        <div class="alert-success mb-3">
+            Ви реєструєтесь за запрошенням до компанії <strong>@invitation!.Company?.Name</strong> з роллю <strong>@invitation.Role?.Name</strong>.
+            @if (!string.IsNullOrWhiteSpace(invitation.Email))
+            {
+                <div class="form-note mt-1">Запрошення привʼязане до email: @invitation.Email</div>
+            }
+            <div class="form-note mt-1">Дійсне до: @invitation.ExpiresAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</div>
+        </div>
+    }
+
+    <form method="post" class="form-grid">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <input type="hidden" name="invite" value="@inviteToken" />
+
+        <div>
+            <label class="form-label" for="username">Ім'я користувача</label>
+            <input id="username" name="username" placeholder="Іван Петренко" required />
+        </div>
+
+        <div>
+            <label class="form-label" for="email">Email</label>
+            <input id="email" name="email" type="email" placeholder="ivan@example.com" required />
+        </div>
+
+        <div>
+            <label class="form-label" for="password">Пароль</label>
+            <input id="password" name="password" type="password" placeholder="Мінімум 6 символів" required />
+        </div>
+
+        @if (isInviteRegistration)
+        {
+            <div>
+                <label class="form-label" for="rolePreview">Роль</label>
+                <input id="rolePreview" value="@invitation!.Role?.Name" readonly />
+                <input type="hidden" name="role" value="@invitation.Role?.Name" />
+            </div>
+        }
+        else
+        {
+            <div>
+                <label class="form-label" for="role">Роль</label>
+                <select id="role" name="role">
+                    <option value="Owner">Власник (Owner)</option>
+                    <option value="Manager">Менеджер (Manager)</option>
+                    <option value="Worker">Працівник (Worker)</option>
+                    <option value="Collector">Заготівельник (Collector)</option>
+                </select>
+            </div>
+        }
+
+        <div class="full actions-row mb-0">
+            <button type="submit" class="btn-brand">Зареєструватися</button>
+            <a href="/Auth/Login?returnUrl=@System.Uri.EscapeDataString(returnUrl)" class="btn-muted">Уже маю акаунт</a>
+        </div>
+    </form>
+</div>

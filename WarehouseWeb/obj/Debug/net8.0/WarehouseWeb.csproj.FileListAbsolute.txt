@@ -1,0 +1,8 @@
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.GeneratedMSBuildEditorConfig.editorconfig
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.AssemblyInfoInputs.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.AssemblyInfo.cs
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.csproj.CoreCompileInputs.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.MvcApplicationPartsAssemblyInfo.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.RazorAssemblyInfo.cache
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.RazorAssemblyInfo.cs
+E:\Навчання\ООП(обєктно орієнтоване програмування)\warehouse-management-system\WarehouseWeb\obj\Debug\net8.0\WarehouseWeb.sourcelink.json
